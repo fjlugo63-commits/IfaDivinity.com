@@ -27,10 +27,19 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
 
-    // Get auth user from request
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!).auth.getUser(token);
+    const { data: { user }, error: authError } = await createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_ANON_KEY")!
+    ).auth.getUser(token);
 
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -48,16 +57,16 @@ serve(async (req) => {
       });
     }
 
-    // Calculate total
-    const totalAmount = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+    const totalAmount = items.reduce(
+      (sum: number, item: any) => sum + item.price * item.quantity,
+      0
+    );
 
-    // Determine if this is an Egbo service order
     let serviceType: string | null = null;
     if (items.some((item: any) => item.service_type === "egbo")) {
       serviceType = "egbo";
     }
 
-    // Create order
     const { data: order, error: orderError } = await supabase
       .from("app_340b9f1944_orders")
       .insert({
@@ -70,9 +79,10 @@ serve(async (req) => {
       .select("id")
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      throw new Error(`Order creation failed: ${orderError.message}`);
+    }
 
-    // Create order items
     const orderItems = items.map((item: any) => ({
       order_id: order.id,
       product_id: item.product_id,
@@ -86,9 +96,11 @@ serve(async (req) => {
       .from("app_340b9f1944_order_items")
       .insert(orderItems);
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      await supabase.from("app_340b9f1944_orders").delete().eq("id", order.id);
+      throw new Error(`Order items creation failed: ${itemsError.message}`);
+    }
 
-    // If booking selection exists, create tentative booking
     let bookingId: string | null = null;
     if (booking_selection && serviceType === "egbo") {
       const { data: booking, error: bookingError } = await supabase
@@ -107,15 +119,20 @@ serve(async (req) => {
         .select("id")
         .single();
 
-      if (bookingError) throw bookingError;
-      bookingId = booking.id;
+      if (!bookingError && booking) {
+        bookingId = booking.id;
+      }
     }
 
-    // Create Stripe Checkout Session
     const lineItems = items.map((item: any) => ({
       price_data: {
         currency: "usd",
-        product_data: { name: item.title },
+        product_data: {
+          name: item.title,
+          ...(item.service_type === "egbo" && {
+            description: `Egbo Service - ${item.duration_minutes || 90} min session`,
+          }),
+        },
         unit_amount: Math.round(item.price * 100),
       },
       quantity: item.quantity,
@@ -125,33 +142,43 @@ serve(async (req) => {
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/orders?success=true`,
-      cancel_url: `${req.headers.get("origin")}/cart?cancelled=true`,
+      success_url: `${req.headers.get("origin") || "http://localhost:5173"}/orders?success=true`,
+      cancel_url: `${req.headers.get("origin") || "http://localhost:5173"}/cart?cancelled=true`,
+      customer_email: user.email,
       metadata: {
         order_id: order.id,
         service_type: serviceType || "product",
         booking_id: bookingId || "",
+        user_id: user.id,
       },
     });
 
-    // Update order with stripe session id
     await supabase
       .from("app_340b9f1944_orders")
       .update({ stripe_session_id: session.id })
       .eq("id", order.id);
 
-    // Audit log
     await supabase.from("app_340b9f1944_audit_logs").insert({
       actor_id: user.id,
       action: "order.created",
       resource: "orders",
       resource_id: order.id,
-      metadata: { service_type: serviceType, item_count: items.length, booking_id: bookingId },
+      metadata: {
+        service_type: serviceType,
+        item_count: items.length,
+        booking_id: bookingId,
+        stripe_session_id: session.id,
+      },
     });
 
-    return new Response(JSON.stringify({ sessionId: session.id, orderId: order.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        sessionId: session.id,
+        orderId: order.id,
+        bookingId: bookingId,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Checkout error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
