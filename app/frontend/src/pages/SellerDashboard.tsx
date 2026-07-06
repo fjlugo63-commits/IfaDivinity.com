@@ -12,8 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import ImageUpload from '@/components/ImageUpload';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, TABLES, DBProduct, DBCategory, DBOrder } from '@/lib/supabase';
+import { logAudit } from '@/lib/audit';
 import { toast } from 'sonner';
 
 function formatPrice(amount: number) {
@@ -40,6 +42,7 @@ export default function SellerDashboard() {
   const [categoryId, setCategoryId] = useState('');
   const [stockQuantity, setStockQuantity] = useState('1');
   const [isActive, setIsActive] = useState(true);
+  const [productImages, setProductImages] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -107,6 +110,7 @@ export default function SellerDashboard() {
     setCategoryId('');
     setStockQuantity('1');
     setIsActive(true);
+    setProductImages([]);
     setDialogOpen(true);
   }
 
@@ -118,6 +122,7 @@ export default function SellerDashboard() {
     setCategoryId(product.category_id || '');
     setStockQuantity((product.stock_quantity ?? 1).toString());
     setIsActive(product.status === 'active');
+    setProductImages(product.images || []);
     setDialogOpen(true);
   }
 
@@ -135,7 +140,7 @@ export default function SellerDashboard() {
       stock_quantity: parseInt(stockQuantity),
       status: isActive ? 'active' : 'draft',
       seller_id: user!.id,
-      images: [] as string[],
+      images: productImages,
     };
 
     try {
@@ -145,12 +150,16 @@ export default function SellerDashboard() {
           .update(productData)
           .eq('id', editingProduct.id);
         if (error) throw error;
+        await logAudit('product.updated', 'products', editingProduct.id, { title });
         toast.success('Product updated');
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from(TABLES.products)
-          .insert(productData);
+          .insert(productData)
+          .select('id')
+          .single();
         if (error) throw error;
+        await logAudit('product.created', 'products', data?.id, { title });
         toast.success('Product created');
       }
       setDialogOpen(false);
@@ -162,8 +171,10 @@ export default function SellerDashboard() {
 
   async function handleDeleteProduct(id: string) {
     try {
+      const product = products.find((p) => p.id === id);
       const { error } = await supabase.from(TABLES.products).delete().eq('id', id);
       if (error) throw error;
+      await logAudit('product.deleted', 'products', id, { title: product?.title });
       toast.success('Product deleted');
       fetchProducts();
     } catch {
@@ -224,6 +235,10 @@ export default function SellerDashboard() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Product Images</Label>
+                  <ImageUpload images={productImages} onImagesChange={setProductImages} maxImages={5} />
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch checked={isActive} onCheckedChange={setIsActive} />

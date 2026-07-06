@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Package, ShoppingBag, AlertTriangle } from 'lucide-react';
+import { Users, Package, ShoppingBag, AlertTriangle, ScrollText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +9,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, TABLES, DBProfile, DBOrder, DBProduct } from '@/lib/supabase';
+import { fetchAuditLogs, AuditLog, logAudit } from '@/lib/audit';
 import { toast } from 'sonner';
 
 function formatPrice(amount: number) {
@@ -21,11 +22,18 @@ export default function AdminPage() {
   const [orders, setOrders] = useState<DBOrder[]>([]);
   const [products, setProducts] = useState<DBProduct[]>([]);
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({});
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchData();
+    loadAuditLogs();
   }, []);
+
+  async function loadAuditLogs() {
+    const logs = await fetchAuditLogs(100);
+    setAuditLogs(logs);
+  }
 
   async function fetchData() {
     setLoading(true);
@@ -69,8 +77,10 @@ export default function AdminPage() {
         .update({ status: 'cancelled' })
         .eq('id', orderId);
       if (error) throw error;
+      await logAudit('order.cancelled', 'orders', orderId);
       toast.success('Order cancelled');
       fetchData();
+      loadAuditLogs();
     } catch {
       toast.error('Failed to cancel order');
     }
@@ -84,8 +94,11 @@ export default function AdminPage() {
         .update({ status: newStatus })
         .eq('id', productId);
       if (error) throw error;
+      const product = products.find((p) => p.id === productId);
+      await logAudit('product.updated', 'products', productId, { title: product?.title, status: newStatus });
       toast.success(newStatus === 'active' ? 'Product published' : 'Product unpublished');
       fetchData();
+      loadAuditLogs();
     } catch {
       toast.error('Failed to update product');
     }
@@ -93,13 +106,16 @@ export default function AdminPage() {
 
   async function handleUpdateUserRole(userId: string, newRole: string) {
     try {
+      const targetUser = users.find((u) => u.id === userId);
       const { error } = await supabase
         .from(TABLES.profiles)
         .update({ role: newRole })
         .eq('id', userId);
       if (error) throw error;
+      await logAudit('user.role_changed', 'profiles', userId, { email: targetUser?.email, newRole });
       toast.success('User role updated');
       fetchData();
+      loadAuditLogs();
     } catch {
       toast.error('Failed to update user role');
     }
@@ -174,6 +190,7 @@ export default function AdminPage() {
             <TabsTrigger value="orders">Orders</TabsTrigger>
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="audit">Audit Logs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="orders" className="mt-6">
@@ -270,6 +287,62 @@ export default function AdminPage() {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="audit" className="mt-6">
+            {auditLogs.length === 0 ? (
+              <Card><CardContent className="text-center py-12">
+                <ScrollText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No audit logs yet. Actions will be recorded here.</p>
+              </CardContent></Card>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-muted-foreground">{auditLogs.length} log entries</p>
+                  <Button variant="outline" size="sm" onClick={loadAuditLogs}>Refresh</Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left p-3 font-medium">Timestamp</th>
+                        <th className="text-left p-3 font-medium">Action</th>
+                        <th className="text-left p-3 font-medium">Resource</th>
+                        <th className="text-left p-3 font-medium">Actor</th>
+                        <th className="text-left p-3 font-medium">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {auditLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-muted/30">
+                          <td className="p-3 text-muted-foreground whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString()}
+                          </td>
+                          <td className="p-3">
+                            <Badge variant={
+                              log.action.includes('deleted') || log.action.includes('cancelled') ? 'destructive' :
+                              log.action.includes('created') ? 'default' : 'secondary'
+                            }>
+                              {log.action}
+                            </Badge>
+                          </td>
+                          <td className="p-3 font-mono text-xs">
+                            {log.resource}
+                            {log.resource_id && <span className="text-muted-foreground ml-1">#{log.resource_id.slice(0, 8)}</span>}
+                          </td>
+                          <td className="p-3 text-muted-foreground font-mono text-xs">
+                            {log.actor_id ? log.actor_id.slice(0, 8) : 'system'}
+                          </td>
+                          <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate">
+                            {Object.keys(log.metadata).length > 0 ? JSON.stringify(log.metadata) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </TabsContent>
