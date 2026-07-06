@@ -15,6 +15,7 @@ import SellerDashboard from './pages/SellerDashboard';
 import Admin from './pages/Admin';
 import AuthCallback from './pages/AuthCallback';
 import AuthError from './pages/AuthError';
+import SuperAdminSetup from './pages/SuperAdminSetup';
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const AppRoutes = () => (
     <Route path="/admin" element={<Admin />} />
     <Route path="/auth/callback" element={<AuthCallback />} />
     <Route path="/auth/error" element={<AuthError />} />
+    <Route path="/setup/super-admin" element={<SuperAdminSetup />} />
   </Routes>
 );
 
