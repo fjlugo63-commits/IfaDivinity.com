@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Package, DollarSign, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,70 +13,59 @@ import { Switch } from '@/components/ui/switch';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, TABLES, DBProduct, DBCategory, DBOrder } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-interface Product {
-  id: string;
-  title: string;
-  description: string;
-  price_cents: number;
-  currency: string;
-  category: string;
-  inventory: number;
-  published: boolean;
-  images: string[];
+function formatPrice(amount: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
-interface SellerOrder {
-  id: string;
-  buyer_email: string;
-  total_cents: number;
-  status: string;
-  created_at: string;
-}
-
-const CATEGORIES = [
-  { value: 'tools', label: 'Divination Tools' },
-  { value: 'beads', label: 'Sacred Beads' },
-  { value: 'books', label: 'Spiritual Books' },
-  { value: 'readings', label: 'Readings' },
-  { value: 'ritual', label: 'Ritual Items' },
-  { value: 'art', label: 'Art & Carvings' },
-];
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 export default function SellerDashboard() {
   const { user } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<SellerOrder[]>([]);
+  const [products, setProducts] = useState<DBProduct[]>([]);
+  const [categories, setCategories] = useState<DBCategory[]>([]);
+  const [orders, setOrders] = useState<DBOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<DBProduct | null>(null);
 
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priceDollars, setPriceDollars] = useState('');
-  const [category, setCategory] = useState('');
-  const [inventory, setInventory] = useState('1');
-  const [published, setPublished] = useState(true);
+  const [categoryId, setCategoryId] = useState('');
+  const [stockQuantity, setStockQuantity] = useState('1');
+  const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
     if (user) {
+      fetchCategories();
       fetchProducts();
       fetchOrders();
     }
   }, [user]);
 
+  async function fetchCategories() {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.categories)
+        .select('*')
+        .order('name');
+      if (!error && data) setCategories(data);
+    } catch {
+      // Silent
+    }
+  }
+
   async function fetchProducts() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('app_products')
+        .from(TABLES.products)
         .select('*')
         .eq('seller_id', user!.id)
         .order('created_at', { ascending: false });
@@ -90,11 +79,21 @@ export default function SellerDashboard() {
 
   async function fetchOrders() {
     try {
-      const { data, error } = await supabase
-        .from('app_orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (!error && data) setOrders(data);
+      // Fetch orders that contain items from this seller
+      const { data: orderItems, error: itemsError } = await supabase
+        .from(TABLES.order_items)
+        .select('order_id')
+        .eq('seller_id', user!.id);
+
+      if (!itemsError && orderItems && orderItems.length > 0) {
+        const orderIds = [...new Set(orderItems.map((oi) => oi.order_id))];
+        const { data, error } = await supabase
+          .from(TABLES.orders)
+          .select('*')
+          .in('id', orderIds)
+          .order('created_at', { ascending: false });
+        if (!error && data) setOrders(data);
+      }
     } catch {
       // Silent
     }
@@ -105,51 +104,51 @@ export default function SellerDashboard() {
     setTitle('');
     setDescription('');
     setPriceDollars('');
-    setCategory('');
-    setInventory('1');
-    setPublished(true);
+    setCategoryId('');
+    setStockQuantity('1');
+    setIsActive(true);
     setDialogOpen(true);
   }
 
-  function openEditDialog(product: Product) {
+  function openEditDialog(product: DBProduct) {
     setEditingProduct(product);
     setTitle(product.title);
-    setDescription(product.description);
-    setPriceDollars((product.price_cents / 100).toString());
-    setCategory(product.category);
-    setInventory(product.inventory.toString());
-    setPublished(product.published);
+    setDescription(product.description || '');
+    setPriceDollars(product.price.toString());
+    setCategoryId(product.category_id || '');
+    setStockQuantity((product.stock_quantity ?? 1).toString());
+    setIsActive(product.status === 'active');
     setDialogOpen(true);
   }
 
   async function handleSaveProduct(e: React.FormEvent) {
     e.preventDefault();
-    const priceCents = Math.round(parseFloat(priceDollars) * 100);
+    const price = parseFloat(priceDollars);
 
     const productData = {
       title,
+      slug: slugify(title),
       description,
-      price_cents: priceCents,
+      price,
       currency: 'USD',
-      category,
-      inventory: parseInt(inventory),
-      published,
+      category_id: categoryId || null,
+      stock_quantity: parseInt(stockQuantity),
+      status: isActive ? 'active' : 'draft',
       seller_id: user!.id,
-      seller_name: user!.email?.split('@')[0] || 'Seller',
-      images: [],
+      images: [] as string[],
     };
 
     try {
       if (editingProduct) {
         const { error } = await supabase
-          .from('app_products')
+          .from(TABLES.products)
           .update(productData)
           .eq('id', editingProduct.id);
         if (error) throw error;
         toast.success('Product updated');
       } else {
         const { error } = await supabase
-          .from('app_products')
+          .from(TABLES.products)
           .insert(productData);
         if (error) throw error;
         toast.success('Product created');
@@ -157,13 +156,13 @@ export default function SellerDashboard() {
       setDialogOpen(false);
       fetchProducts();
     } catch {
-      toast.error('Failed to save product. Make sure Supabase is connected.');
+      toast.error('Failed to save product. Please try again.');
     }
   }
 
   async function handleDeleteProduct(id: string) {
     try {
-      const { error } = await supabase.from('app_products').delete().eq('id', id);
+      const { error } = await supabase.from(TABLES.products).delete().eq('id', id);
       if (error) throw error;
       toast.success('Product deleted');
       fetchProducts();
@@ -172,7 +171,13 @@ export default function SellerDashboard() {
     }
   }
 
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total_cents || 0), 0);
+  function getCategoryName(categoryId: string | null) {
+    if (!categoryId) return 'Uncategorized';
+    const cat = categories.find((c) => c.id === categoryId);
+    return cat?.name || 'Uncategorized';
+  }
+
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -205,24 +210,24 @@ export default function SellerDashboard() {
                     <Input id="price" type="number" step="0.01" min="0" value={priceDollars} onChange={(e) => setPriceDollars(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="inventory">Inventory</Label>
-                    <Input id="inventory" type="number" min="0" value={inventory} onChange={(e) => setInventory(e.target.value)} required />
+                    <Label htmlFor="stock">Stock Quantity</Label>
+                    <Input id="stock" type="number" min="0" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} required />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
+                  <Select value={categoryId} onValueChange={setCategoryId}>
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>
-                      {CATEGORIES.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch checked={published} onCheckedChange={setPublished} />
-                  <Label>Published (visible to buyers)</Label>
+                  <Switch checked={isActive} onCheckedChange={setIsActive} />
+                  <Label>Active (visible to buyers)</Label>
                 </div>
                 <Button type="submit" className="w-full">
                   {editingProduct ? 'Update Product' : 'Create Product'}
@@ -291,14 +296,20 @@ export default function SellerDashboard() {
                   <Card key={product.id}>
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">🔮</div>
+                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                          {product.images?.[0] ? (
+                            <img src={product.images[0]} alt="" className="w-full h-full object-cover rounded" />
+                          ) : (
+                            <span>🔮</span>
+                          )}
+                        </div>
                         <div>
                           <h3 className="font-medium">{product.title}</h3>
                           <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">{product.category}</Badge>
-                            <span className="text-sm text-muted-foreground">{formatPrice(product.price_cents)}</span>
-                            <span className="text-sm text-muted-foreground">• {product.inventory} in stock</span>
-                            {!product.published && <Badge variant="secondary" className="text-xs">Draft</Badge>}
+                            <Badge variant="outline" className="text-xs">{getCategoryName(product.category_id)}</Badge>
+                            <span className="text-sm text-muted-foreground">{formatPrice(product.price)}</span>
+                            <span className="text-sm text-muted-foreground">• {product.stock_quantity ?? 0} in stock</span>
+                            {product.status !== 'active' && <Badge variant="secondary" className="text-xs">{product.status}</Badge>}
                           </div>
                         </div>
                       </div>
@@ -336,7 +347,7 @@ export default function SellerDashboard() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">{formatPrice(order.total_cents)}</p>
+                        <p className="font-bold">{formatPrice(order.total_amount)}</p>
                         <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>{order.status}</Badge>
                       </div>
                     </CardContent>

@@ -1,51 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Users, Package, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, TABLES, DBProfile, DBOrder, DBProduct } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-interface AdminUser {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  created_at: string;
-}
-
-interface AdminOrder {
-  id: string;
-  buyer_id: string;
-  total_cents: number;
-  currency: string;
-  status: string;
-  created_at: string;
-}
-
-interface AdminProduct {
-  id: string;
-  title: string;
-  seller_name: string;
-  price_cents: number;
-  published: boolean;
-  category: string;
-}
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+function formatPrice(amount: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
 export default function AdminPage() {
   const { userRole } = useAuth();
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [users, setUsers] = useState<DBProfile[]>([]);
+  const [orders, setOrders] = useState<DBOrder[]>([]);
+  const [products, setProducts] = useState<DBProduct[]>([]);
+  const [sellerNames, setSellerNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,13 +31,30 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const [usersRes, ordersRes, productsRes] = await Promise.all([
-        supabase.from('app_users').select('*').order('created_at', { ascending: false }),
-        supabase.from('app_orders').select('*').order('created_at', { ascending: false }),
-        supabase.from('app_products').select('*').order('created_at', { ascending: false }),
+        supabase.from(TABLES.profiles).select('*').order('created_at', { ascending: false }),
+        supabase.from(TABLES.orders).select('*').order('created_at', { ascending: false }),
+        supabase.from(TABLES.products).select('*').order('created_at', { ascending: false }),
       ]);
       if (usersRes.data) setUsers(usersRes.data);
       if (ordersRes.data) setOrders(ordersRes.data);
-      if (productsRes.data) setProducts(productsRes.data);
+      if (productsRes.data) {
+        setProducts(productsRes.data);
+        // Fetch seller names
+        const sellerIds = [...new Set(productsRes.data.map((p) => p.seller_id))];
+        if (sellerIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from(TABLES.profiles)
+            .select('id, full_name, email')
+            .in('id', sellerIds);
+          if (profiles) {
+            const names: Record<string, string> = {};
+            profiles.forEach((p) => {
+              names[p.id] = p.full_name || p.email?.split('@')[0] || 'Seller';
+            });
+            setSellerNames(names);
+          }
+        }
+      }
     } catch {
       // Silent
     } finally {
@@ -73,7 +65,7 @@ export default function AdminPage() {
   async function handleCancelOrder(orderId: string) {
     try {
       const { error } = await supabase
-        .from('app_orders')
+        .from(TABLES.orders)
         .update({ status: 'cancelled' })
         .eq('id', orderId);
       if (error) throw error;
@@ -84,14 +76,15 @@ export default function AdminPage() {
     }
   }
 
-  async function handleToggleProduct(productId: string, published: boolean) {
+  async function handleToggleProduct(productId: string, currentStatus: string) {
+    const newStatus = currentStatus === 'active' ? 'draft' : 'active';
     try {
       const { error } = await supabase
-        .from('app_products')
-        .update({ published: !published })
+        .from(TABLES.products)
+        .update({ status: newStatus })
         .eq('id', productId);
       if (error) throw error;
-      toast.success(published ? 'Product unpublished' : 'Product published');
+      toast.success(newStatus === 'active' ? 'Product published' : 'Product unpublished');
       fetchData();
     } catch {
       toast.error('Failed to update product');
@@ -101,7 +94,7 @@ export default function AdminPage() {
   async function handleUpdateUserRole(userId: string, newRole: string) {
     try {
       const { error } = await supabase
-        .from('app_users')
+        .from(TABLES.profiles)
         .update({ role: newRole })
         .eq('id', userId);
       if (error) throw error;
@@ -169,7 +162,7 @@ export default function AdminPage() {
             <CardContent className="flex items-center gap-4 p-6">
               <span className="text-2xl">💰</span>
               <div>
-                <p className="text-2xl font-bold">{formatPrice(orders.reduce((s, o) => s + o.total_cents, 0))}</p>
+                <p className="text-2xl font-bold">{formatPrice(orders.reduce((s, o) => s + o.total_amount, 0))}</p>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
               </div>
             </CardContent>
@@ -196,12 +189,12 @@ export default function AdminPage() {
                       <div>
                         <p className="font-medium">Order #{order.id.slice(0, 8)}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString()} • Buyer: {order.buyer_id.slice(0, 8)}
+                          {new Date(order.created_at).toLocaleDateString()} • Buyer: {order.buyer_id?.slice(0, 8) || 'N/A'}
                         </p>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="font-bold">{formatPrice(order.total_cents)}</p>
+                          <p className="font-bold">{formatPrice(order.total_amount)}</p>
                           <Badge variant={order.status === 'cancelled' ? 'destructive' : order.status === 'completed' ? 'default' : 'secondary'}>
                             {order.status}
                           </Badge>
@@ -230,19 +223,19 @@ export default function AdminPage() {
                       <div>
                         <h3 className="font-medium">{product.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          by {product.seller_name} • {product.category} • {formatPrice(product.price_cents)}
+                          by {sellerNames[product.seller_id] || 'Seller'} • {formatPrice(product.price)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={product.published ? 'default' : 'secondary'}>
-                          {product.published ? 'Published' : 'Draft'}
+                        <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
+                          {product.status}
                         </Badge>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleToggleProduct(product.id, product.published)}
+                          onClick={() => handleToggleProduct(product.id, product.status)}
                         >
-                          {product.published ? 'Unpublish' : 'Publish'}
+                          {product.status === 'active' ? 'Unpublish' : 'Publish'}
                         </Button>
                       </div>
                     </CardContent>
@@ -261,7 +254,7 @@ export default function AdminPage() {
                   <Card key={u.id}>
                     <CardContent className="flex items-center justify-between p-4">
                       <div>
-                        <p className="font-medium">{u.name || u.email}</p>
+                        <p className="font-medium">{u.full_name || u.email}</p>
                         <p className="text-sm text-muted-foreground">{u.email} • Joined {new Date(u.created_at).toLocaleDateString()}</p>
                       </div>
                       <Select value={u.role} onValueChange={(val) => handleUpdateUserRole(u.id, val)}>

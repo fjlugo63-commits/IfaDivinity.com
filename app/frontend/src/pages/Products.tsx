@@ -8,98 +8,92 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { supabase } from '@/lib/supabase';
+import { supabase, TABLES, DBProduct, DBCategory } from '@/lib/supabase';
 
-interface Product {
-  id: string;
-  title: string;
-  description: string;
-  price_cents: number;
-  currency: string;
-  images: string[];
-  category: string;
-  seller_name: string;
-  inventory: number;
+function formatPrice(price: number, currency: string = 'USD') {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(price);
 }
-
-const CATEGORIES = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'tools', label: 'Divination Tools' },
-  { value: 'beads', label: 'Sacred Beads' },
-  { value: 'books', label: 'Spiritual Books' },
-  { value: 'readings', label: 'Readings' },
-  { value: 'ritual', label: 'Ritual Items' },
-  { value: 'art', label: 'Art & Carvings' },
-];
-
-function formatPrice(cents: number, currency: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(cents / 100);
-}
-
-// Demo products for when DB is not connected
-const DEMO_PRODUCTS: Product[] = [
-  { id: '1', title: 'Authentic Opele Divination Chain', description: 'Hand-crafted opele chain used in Ifa divination, made with traditional materials.', price_cents: 12500, currency: 'USD', images: [], category: 'tools', seller_name: 'Baba Ifa Karade', inventory: 5 },
-  { id: '2', title: 'Ikin Palm Nuts Set (16 pieces)', description: 'Sacred ikin palm nuts for Ifa divination, properly consecrated.', price_cents: 8900, currency: 'USD', images: [], category: 'tools', seller_name: 'Iya Osun Creations', inventory: 12 },
-  { id: '3', title: 'Hand-Carved Opon Ifa Board', description: 'Beautiful hand-carved divination tray with traditional Yoruba motifs.', price_cents: 34500, currency: 'USD', images: [], category: 'art', seller_name: 'Yoruba Heritage', inventory: 3 },
-  { id: '4', title: 'Cowrie Shell Reading Set', description: 'Set of 16 cowrie shells prepared for divination readings.', price_cents: 4500, currency: 'USD', images: [], category: 'tools', seller_name: 'Sacred Shells Co', inventory: 20 },
-  { id: '5', title: 'Ifa Beaded Necklace - Orunmila', description: 'Traditional green and brown beaded necklace representing Orunmila.', price_cents: 6700, currency: 'USD', images: [], category: 'beads', seller_name: 'Baba Ifa Karade', inventory: 8 },
-  { id: '6', title: 'The Complete Guide to Ifa Divination', description: 'Comprehensive book covering all 256 Odu of Ifa with interpretations.', price_cents: 3200, currency: 'USD', images: [], category: 'books', seller_name: 'Yoruba Heritage', inventory: 50 },
-  { id: '7', title: 'Ritual Candle Set - Seven Orishas', description: 'Set of seven colored candles for Orisha devotion and ritual work.', price_cents: 2800, currency: 'USD', images: [], category: 'ritual', seller_name: 'Iya Osun Creations', inventory: 30 },
-  { id: '8', title: 'Carved Esu Elegba Statue', description: 'Hand-carved wooden statue of Esu Elegba, guardian of the crossroads.', price_cents: 18900, currency: 'USD', images: [], category: 'art', seller_name: 'Yoruba Heritage', inventory: 2 },
-];
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [products, setProducts] = useState<Product[]>(DEMO_PRODUCTS);
+  const [products, setProducts] = useState<DBProduct[]>([]);
+  const [categories, setCategories] = useState<DBCategory[]>([]);
+  const [sellerNames, setSellerNames] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [category, setCategory] = useState(searchParams.get('category') || 'all');
+  const [categorySlug, setCategorySlug] = useState(searchParams.get('category') || 'all');
   const [sortBy, setSortBy] = useState('newest');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, [category, sortBy]);
+  }, [categorySlug, sortBy, categories]);
+
+  async function fetchCategories() {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.categories)
+        .select('*')
+        .order('name');
+      if (!error && data) {
+        setCategories(data);
+      }
+    } catch {
+      // Silent
+    }
+  }
 
   async function fetchProducts() {
     setLoading(true);
     try {
-      let query = supabase.from('app_products').select('*').eq('published', true);
+      let query = supabase.from(TABLES.products).select('*').eq('status', 'active');
 
-      if (category && category !== 'all') {
-        query = query.eq('category', category);
+      if (categorySlug && categorySlug !== 'all') {
+        // Find category ID by slug
+        const cat = categories.find((c) => c.slug === categorySlug);
+        if (cat) {
+          query = query.eq('category_id', cat.id);
+        }
+      }
+
+      if (searchQuery.trim()) {
+        query = query.ilike('title', `%${searchQuery.trim()}%`);
       }
 
       if (sortBy === 'price_low') {
-        query = query.order('price_cents', { ascending: true });
+        query = query.order('price', { ascending: true });
       } else if (sortBy === 'price_high') {
-        query = query.order('price_cents', { ascending: false });
+        query = query.order('price', { ascending: false });
       } else {
         query = query.order('created_at', { ascending: false });
       }
 
       const { data, error } = await query;
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         setProducts(data);
+        // Fetch seller names for these products
+        const sellerIds = [...new Set(data.map((p) => p.seller_id))];
+        if (sellerIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from(TABLES.profiles)
+            .select('id, full_name, email')
+            .in('id', sellerIds);
+          if (profiles) {
+            const names: Record<string, string> = {};
+            profiles.forEach((p) => {
+              names[p.id] = p.full_name || p.email?.split('@')[0] || 'Seller';
+            });
+            setSellerNames(names);
+          }
+        }
       } else {
-        // Use demo data if no DB connection or no data
-        let filtered = [...DEMO_PRODUCTS];
-        if (category && category !== 'all') {
-          filtered = filtered.filter((p) => p.category === category);
-        }
-        if (sortBy === 'price_low') {
-          filtered.sort((a, b) => a.price_cents - b.price_cents);
-        } else if (sortBy === 'price_high') {
-          filtered.sort((a, b) => b.price_cents - a.price_cents);
-        }
-        setProducts(filtered);
+        setProducts([]);
       }
     } catch {
-      // Fallback to demo data
-      let filtered = [...DEMO_PRODUCTS];
-      if (category && category !== 'all') {
-        filtered = filtered.filter((p) => p.category === category);
-      }
-      setProducts(filtered);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -114,18 +108,11 @@ export default function ProductsPage() {
       params.delete('search');
     }
     setSearchParams(params);
-
-    // Filter demo products by search
-    const filtered = DEMO_PRODUCTS.filter(
-      (p) =>
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setProducts(filtered.length > 0 ? filtered : DEMO_PRODUCTS);
+    fetchProducts();
   }
 
   function handleCategoryChange(value: string) {
-    setCategory(value);
+    setCategorySlug(value);
     const params = new URLSearchParams(searchParams);
     if (value !== 'all') {
       params.set('category', value);
@@ -133,6 +120,12 @@ export default function ProductsPage() {
       params.delete('category');
     }
     setSearchParams(params);
+  }
+
+  function getCategoryName(categoryId: string | null) {
+    if (!categoryId) return 'Uncategorized';
+    const cat = categories.find((c) => c.id === categoryId);
+    return cat?.name || 'Uncategorized';
   }
 
   return (
@@ -153,14 +146,15 @@ export default function ProductsPage() {
             <Button type="submit">Search</Button>
           </form>
           <div className="flex gap-2">
-            <Select value={category} onValueChange={handleCategoryChange}>
+            <Select value={categorySlug} onValueChange={handleCategoryChange}>
               <SelectTrigger className="w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.slug}>{cat.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -177,10 +171,10 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        {category !== 'all' && (
+        {categorySlug !== 'all' && (
           <div className="mb-4">
             <Badge variant="secondary" className="text-sm">
-              {CATEGORIES.find((c) => c.value === category)?.label}
+              {categories.find((c) => c.slug === categorySlug)?.name || categorySlug}
               <button onClick={() => handleCategoryChange('all')} className="ml-2 hover:text-destructive">×</button>
             </Badge>
           </div>
@@ -212,12 +206,12 @@ export default function ProductsPage() {
                     )}
                   </div>
                   <CardContent className="p-4">
-                    <Badge variant="outline" className="text-xs mb-2">{product.category}</Badge>
+                    <Badge variant="outline" className="text-xs mb-2">{getCategoryName(product.category_id)}</Badge>
                     <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.title}</h3>
-                    <p className="text-xs text-muted-foreground mb-2">by {product.seller_name}</p>
+                    <p className="text-xs text-muted-foreground mb-2">by {sellerNames[product.seller_id] || 'Seller'}</p>
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-primary">{formatPrice(product.price_cents, product.currency)}</p>
-                      {product.inventory <= 3 && product.inventory > 0 && (
+                      <p className="font-bold text-primary">{formatPrice(product.price, product.currency || 'USD')}</p>
+                      {product.stock_quantity !== null && product.stock_quantity <= 3 && product.stock_quantity > 0 && (
                         <Badge variant="destructive" className="text-xs">Low Stock</Badge>
                       )}
                     </div>
@@ -231,7 +225,7 @@ export default function ProductsPage() {
         {products.length === 0 && !loading && (
           <div className="text-center py-16">
             <p className="text-lg text-muted-foreground">No products found matching your criteria.</p>
-            <Button variant="outline" className="mt-4" onClick={() => { setCategory('all'); setSearchQuery(''); }}>
+            <Button variant="outline" className="mt-4" onClick={() => { handleCategoryChange('all'); setSearchQuery(''); }}>
               Clear Filters
             </Button>
           </div>

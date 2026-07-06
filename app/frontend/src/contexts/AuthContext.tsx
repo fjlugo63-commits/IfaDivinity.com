@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured, UserRole } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, TABLES, UserRole } from '@/lib/supabase';
 
 interface AuthContextType {
   session: Session | null;
@@ -54,9 +54,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function fetchUserRole(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('app_users')
+        .from(TABLES.profiles)
         .select('role')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .single();
 
       if (error || !data) {
@@ -80,16 +80,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { name, role },
+        data: { full_name: name, role },
       },
     });
     if (!error) {
+      // The trigger should auto-create profile, but let's also try to upsert
       const { data: { user: newUser } } = await supabase.auth.getUser();
       if (newUser) {
-        await supabase.from('app_users').insert({
-          user_id: newUser.id,
+        await supabase.from(TABLES.profiles).upsert({
+          id: newUser.id,
           email,
-          name,
+          full_name: name,
           role,
         });
       }

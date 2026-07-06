@@ -6,27 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, TABLES, DBOrder } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-interface Order {
-  id: string;
-  total_cents: number;
-  currency: string;
-  status: string;
-  stripe_payment_id: string;
-  created_at: string;
-}
-
-function formatPrice(cents: number, currency: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(cents / 100);
+function formatPrice(amount: number, currency: string = 'USD') {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 }
 
 export default function OrdersPage() {
   const [searchParams] = useSearchParams();
   const isSuccess = searchParams.get('success') === 'true';
   const { user } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<DBOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,7 +35,7 @@ export default function OrdersPage() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('app_orders')
+        .from(TABLES.orders)
         .select('*')
         .eq('buyer_id', user!.id)
         .order('created_at', { ascending: false });
@@ -124,7 +115,7 @@ export default function OrdersPage() {
                         day: 'numeric',
                       })}
                     </span>
-                    <span className="font-bold">{formatPrice(order.total_cents, order.currency)}</span>
+                    <span className="font-bold">{formatPrice(order.total_amount, order.currency || 'USD')}</span>
                   </div>
                 </CardContent>
               </Card>

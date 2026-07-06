@@ -5,32 +5,80 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase, TABLES, DBProduct, DBCategory } from '@/lib/supabase';
 
-const CATEGORIES = [
-  { name: 'Divination Tools', slug: 'tools', icon: '🔮' },
-  { name: 'Sacred Beads', slug: 'beads', icon: '📿' },
-  { name: 'Spiritual Books', slug: 'books', icon: '📖' },
-  { name: 'Readings & Consultations', slug: 'readings', icon: '✨' },
-  { name: 'Ritual Items', slug: 'ritual', icon: '🕯️' },
-  { name: 'Art & Carvings', slug: 'art', icon: '🎭' },
-];
+const CATEGORY_ICONS: Record<string, string> = {
+  tools: '🔮',
+  beads: '📿',
+  books: '📖',
+  readings: '✨',
+  ritual: '🕯️',
+  art: '🎭',
+};
 
-const FEATURED_PRODUCTS = [
-  { id: '1', title: 'Authentic Opele Divination Chain', price_cents: 12500, currency: 'USD', image: '', seller: 'Baba Ifa Karade' },
-  { id: '2', title: 'Ikin Palm Nuts Set (16 pieces)', price_cents: 8900, currency: 'USD', image: '', seller: 'Iya Osun Creations' },
-  { id: '3', title: 'Hand-Carved Opon Ifa Board', price_cents: 34500, currency: 'USD', image: '', seller: 'Yoruba Heritage' },
-  { id: '4', title: 'Cowrie Shell Reading Set', price_cents: 4500, currency: 'USD', image: '', seller: 'Sacred Shells Co' },
-];
-
-function formatPrice(cents: number, currency: string) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(cents / 100);
+function formatPrice(price: number, currency: string = 'USD') {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(price);
 }
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState<DBCategory[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<DBProduct[]>([]);
+  const [sellerNames, setSellerNames] = useState<Record<string, string>>({});
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchCategories();
+    fetchFeaturedProducts();
+  }, []);
+
+  async function fetchCategories() {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.categories)
+        .select('*')
+        .order('name');
+      if (!error && data) {
+        setCategories(data);
+      }
+    } catch {
+      // Silent
+    }
+  }
+
+  async function fetchFeaturedProducts() {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.products)
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(4);
+
+      if (!error && data) {
+        setFeaturedProducts(data);
+        // Fetch seller names
+        const sellerIds = [...new Set(data.map((p) => p.seller_id))];
+        if (sellerIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from(TABLES.profiles)
+            .select('id, full_name, email')
+            .in('id', sellerIds);
+          if (profiles) {
+            const names: Record<string, string> = {};
+            profiles.forEach((p) => {
+              names[p.id] = p.full_name || p.email?.split('@')[0] || 'Seller';
+            });
+            setSellerNames(names);
+          }
+        }
+      }
+    } catch {
+      // Silent
+    }
+  }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -85,11 +133,11 @@ export default function HomePage() {
       <section className="container mx-auto px-4 py-16">
         <h2 className="text-2xl font-heading font-bold mb-8 text-center">Browse Categories</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {CATEGORIES.map((cat) => (
-            <Link key={cat.slug} to={`/products?category=${cat.slug}`}>
+          {categories.map((cat) => (
+            <Link key={cat.id} to={`/products?category=${cat.slug}`}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                 <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-                  <span className="text-3xl mb-3">{cat.icon}</span>
+                  <span className="text-3xl mb-3">{CATEGORY_ICONS[cat.slug] || '📦'}</span>
                   <span className="text-sm font-medium">{cat.name}</span>
                 </CardContent>
               </Card>
@@ -99,32 +147,38 @@ export default function HomePage() {
       </section>
 
       {/* Featured Products */}
-      <section className="bg-muted/30 py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-heading font-bold">Featured Products</h2>
-            <Link to="/products">
-              <Button variant="outline">View All</Button>
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {FEATURED_PRODUCTS.map((product) => (
-              <Link key={product.id} to={`/products/${product.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full overflow-hidden">
-                  <div className="aspect-square bg-muted flex items-center justify-center">
-                    <span className="text-4xl">🔮</span>
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.title}</h3>
-                    <p className="text-xs text-muted-foreground mb-2">by {product.seller}</p>
-                    <p className="font-bold text-primary">{formatPrice(product.price_cents, product.currency)}</p>
-                  </CardContent>
-                </Card>
+      {featuredProducts.length > 0 && (
+        <section className="bg-muted/30 py-16">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-heading font-bold">Featured Products</h2>
+              <Link to="/products">
+                <Button variant="outline">View All</Button>
               </Link>
-            ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProducts.map((product) => (
+                <Link key={product.id} to={`/products/${product.id}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full overflow-hidden">
+                    <div className="aspect-square bg-muted flex items-center justify-center">
+                      {product.images?.[0] ? (
+                        <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-4xl">🔮</span>
+                      )}
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.title}</h3>
+                      <p className="text-xs text-muted-foreground mb-2">by {sellerNames[product.seller_id] || 'Seller'}</p>
+                      <p className="font-bold text-primary">{formatPrice(product.price, product.currency || 'USD')}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Trust Signals */}
       <section className="container mx-auto px-4 py-16">

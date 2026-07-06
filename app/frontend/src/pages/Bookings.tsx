@@ -8,27 +8,14 @@ import { Separator } from '@/components/ui/separator';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase, TABLES, DBProfile } from '@/lib/supabase';
 import { toast } from 'sonner';
-
-interface Practitioner {
-  id: string;
-  display_name: string;
-  bio: string;
-  verified: boolean;
-}
 
 interface TimeSlot {
   date: string;
   time: string;
   available: boolean;
 }
-
-const DEMO_PRACTITIONERS: Practitioner[] = [
-  { id: 's1', display_name: 'Baba Ifa Karade', bio: 'Senior Babalawo with 25+ years of Ifa practice. Specializes in life path readings and spiritual guidance.', verified: true },
-  { id: 's2', display_name: 'Iya Osun Creations', bio: 'Iyanifa and priestess of Oshun. Expert in love, fertility, and prosperity readings.', verified: true },
-  { id: 's3', display_name: 'Chief Adewale', bio: 'Traditional chief and Ifa priest. Offers comprehensive Odu readings and ancestral consultations.', verified: true },
-];
 
 function generateTimeSlots(): TimeSlot[] {
   const slots: TimeSlot[] = [];
@@ -46,7 +33,7 @@ function generateTimeSlots(): TimeSlot[] {
 
 export default function BookingsPage() {
   const { user } = useAuth();
-  const [practitioners, setPractitioners] = useState<Practitioner[]>(DEMO_PRACTITIONERS);
+  const [practitioners, setPractitioners] = useState<DBProfile[]>([]);
   const [selectedPractitioner, setSelectedPractitioner] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -61,14 +48,14 @@ export default function BookingsPage() {
   async function fetchPractitioners() {
     try {
       const { data, error } = await supabase
-        .from('app_sellers')
+        .from(TABLES.profiles)
         .select('*')
-        .eq('verified', true);
+        .eq('role', 'seller');
       if (!error && data && data.length > 0) {
         setPractitioners(data);
       }
     } catch {
-      // Use demo data
+      // Silent
     }
   }
 
@@ -87,31 +74,32 @@ export default function BookingsPage() {
 
     setLoading(true);
     try {
-      const startTime = new Date(`${selectedDate}T${selectedTime}:00`);
-      const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour
+      const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`).toISOString();
 
-      const { error } = await supabase.from('app_bookings').insert({
-        seller_id: selectedPractitioner,
-        buyer_id: user.id,
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
+      const { error } = await supabase.from(TABLES.bookings).insert({
+        practitioner_id: selectedPractitioner,
+        client_id: user.id,
+        service_type: 'ifa_reading',
+        scheduled_at: scheduledAt,
+        duration_minutes: 60,
         status: 'confirmed',
-        meeting_link: `https://meet.ifamarket.com/${Date.now()}`,
+        price: 75.00,
+        meeting_url: `https://meet.ifamarket.com/${Date.now()}`,
+        notes: null,
       });
 
       if (error) throw error;
       setBookingConfirmed(true);
       toast.success('Reading booked successfully!');
     } catch {
-      // Demo mode - still show confirmation
-      setBookingConfirmed(true);
-      toast.success('Reading booked successfully! (Demo mode)');
+      toast.error('Failed to book reading. Please try again.');
     } finally {
       setLoading(false);
     }
   }
 
   if (bookingConfirmed) {
+    const practitioner = practitioners.find((p) => p.id === selectedPractitioner);
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -122,7 +110,7 @@ export default function BookingsPage() {
               <h2 className="text-2xl font-heading font-bold">Booking Confirmed!</h2>
               <p className="text-muted-foreground">
                 Your reading with{' '}
-                <strong>{practitioners.find((p) => p.id === selectedPractitioner)?.display_name}</strong>{' '}
+                <strong>{practitioner?.full_name || 'Practitioner'}</strong>{' '}
                 is scheduled for{' '}
                 <strong>{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</strong>{' '}
                 at <strong>{selectedTime}</strong>.
@@ -158,30 +146,42 @@ export default function BookingsPage() {
             {/* Practitioner Selection */}
             <div className="space-y-6">
               <h2 className="text-xl font-semibold">Choose a Practitioner</h2>
-              <div className="space-y-4">
-                {practitioners.map((p) => (
-                  <Card
-                    key={p.id}
-                    className={`cursor-pointer transition-all ${selectedPractitioner === p.id ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
-                    onClick={() => setSelectedPractitioner(p.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-lg">👤</span>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium">{p.display_name}</h3>
-                            {p.verified && <Badge variant="secondary" className="text-xs">Verified</Badge>}
+              {practitioners.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center text-muted-foreground">
+                    No practitioners available yet. Check back soon!
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {practitioners.map((p) => (
+                    <Card
+                      key={p.id}
+                      className={`cursor-pointer transition-all ${selectedPractitioner === p.id ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
+                      onClick={() => setSelectedPractitioner(p.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            {p.avatar_url ? (
+                              <img src={p.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
+                            ) : (
+                              <span className="text-lg">👤</span>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">{p.bio}</p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium">{p.full_name || p.email}</h3>
+                              <Badge variant="secondary" className="text-xs">Verified</Badge>
+                            </div>
+                            {p.bio && <p className="text-sm text-muted-foreground mt-1">{p.bio}</p>}
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Date & Time Selection */}
