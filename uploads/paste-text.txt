@@ -1,0 +1,53 @@
+Project Name: Ifa Divinity Marketplace
+Goal: MVP marketplace for Ifa divination products and readings. Secure, testable, deployable.
+
+Core Flows:
+- Buyer: browse, search, filter, product detail, add to cart, checkout (Stripe), order confirmation email.
+- Seller: sign up, profile, create/manage product listings (images, price, inventory, shipping), view orders.
+- Admin: manage products, orders, users, refunds, content.
+- Services: booking flow for readings with calendar availability and digital delivery.
+
+Data Model (tables and key fields):
+- users: id, email, role {anon, buyer, seller, admin}, name, created_at
+- sellers: id, user_id, display_name, bio, verified, created_at
+- products: id, seller_id, title, description, price_cents, currency, inventory, images[], category, published, created_at
+- orders: id, buyer_id, total_cents, currency, status, stripe_payment_id, created_at
+- order_items: id, order_id, product_id, quantity, unit_price_cents
+- bookings: id, seller_id, buyer_id, start_time, end_time, status, meeting_link
+- audit_logs: id, actor_id, action, resource, metadata, created_at
+
+Auth and Roles:
+- Use Supabase Auth (email/password). Roles: anon, authenticated, seller, admin.
+- JWT role claims used for RLS.
+
+Payments:
+- Stripe test mode for MVP. Use webhooks for fulfillment and order status updates.
+- Store only Stripe payment IDs in DB. Do not store card data.
+
+RLS and Policies (high level):
+- products: public SELECT; INSERT/UPDATE/DELETE only for seller role and owner checks.
+- orders: buyer can SELECT their orders; admin full access; sellers can read order_items for their products only.
+- bookings: owner access only.
+- Enforce auth.uid() checks in policies.
+
+CI and Deploy:
+- Stack: Next.js frontend, Supabase DB/Auth, Stripe, Vercel or Atoms hosting.
+- CI: GitHub Actions: lint, unit tests, integration tests, SAST, deploy to staging on develop, manual approval to production.
+- Environments: staging and production with separate Supabase and Stripe keys.
+
+Acceptance Criteria:
+- Buyer can complete checkout with Stripe test card and order appears in orders table.
+- Seller can create and publish product; product appears in public listing.
+- Admin can view and cancel orders.
+- Bookings can be created and viewed by both parties.
+- RLS prevents unauthorized reads/writes.
+
+Notes for Atoms:
+- Do not embed secrets in the spec. After scaffold, add:
+  - SUPABASE_URL
+  - SUPABASE_ANON_KEY (client)
+  - SUPABASE_SERVICE_KEY (server only, never client)
+  - STRIPE_PUBLISHABLE_KEY (client)
+  - STRIPE_SECRET_KEY (server only)
+- Request Atoms to generate SQL for tables, RLS policies, and seed data for staging.
+- Request a GitHub Actions CI template and a staging preview URL.

@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700&family=Rubik:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 25% 98%;
+    --foreground: 240 10% 12%;
+
+    --card: 30 20% 97%;
+    --card-foreground: 240 10% 12%;
+
+    --popover: 30 20% 97%;
+    --popover-foreground: 240 10% 12%;
+
+    --primary: 245 58% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 30 20% 93%;
+    --secondary-foreground: 240 10% 12%;
+
+    --muted: 30 15% 92%;
+    --muted-foreground: 240 5% 45%;
+
+    --accent: 36 90% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 245 58% 42%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 30 20% 96%;
+    --sidebar-foreground: 240 5% 26%;
+    --sidebar-primary: 245 58% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 15% 92%;
+    --sidebar-accent-foreground: 240 5% 26%;
+    --sidebar-border: 30 15% 88%;
+    --sidebar-ring: 245 58% 42%;
+  }
+
+  .dark {
+    --background: 240 10% 8%;
+    --foreground: 30 15% 95%;
+
+    --card: 240 10% 11%;
+    --card-foreground: 30 15% 95%;
+
+    --popover: 240 10% 11%;
+    --popover-foreground: 30 15% 95%;
+
+    --primary: 245 58% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 8% 16%;
+    --secondary-foreground: 30 15% 95%;
+
+    --muted: 240 8% 16%;
+    --muted-foreground: 30 10% 60%;
+
+    --accent: 36 90% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 8% 18%;
+    --input: 240 8% 18%;
+    --ring: 245 58% 60%;
+
+    --sidebar-background: 240 10% 6%;
+    --sidebar-foreground: 30 10% 90%;
+    --sidebar-primary: 245 58% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 8% 14%;
+    --sidebar-accent-foreground: 30 10% 90%;
+    --sidebar-border: 240 8% 18%;
+    --sidebar-ring: 245 58% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Nunito Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Rubik', sans-serif;
+  }
+}
+
+.font-heading {
+  font-family: 'Rubik', sans-serif;
+}
