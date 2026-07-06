@@ -1,0 +1,87 @@
+Project Name: Ifa Divinity Marketplace (ifa-staging / ifa-prod)
+Template: Marketplace / E‑commerce
+
+Goal: Scaffold a secure MVP marketplace for Ifa divination products and services (physical ritual items and service bookings such as Egbo). Generate frontend (Next.js), serverless functions, Supabase DB + RLS SQL, Stripe checkout + webhook edge functions, GitHub Actions CI with staging preview and manual production gate, Supabase Storage signed uploads, and seed data for staging.
+
+Core Flows:
+- Buyer: browse, search, filter, product detail, add to cart, checkout (Stripe Checkout), order confirmation email.
+- Seller: sign up, profile, create/manage product and service listings (images, price, inventory, shipping, service_type e.g., egbo), view orders, availability calendar for services.
+- Admin: manage products, orders, users, seller verification, refunds, content moderation.
+- Services: booking flow for readings and Egbo rituals with calendar availability and optional digital delivery.
+
+Data Model (create these tables and indexes; include RLS policies):
+- users: id uuid pk default gen_random_uuid(), email text unique not null, role text default 'buyer', name text, created_at timestamptz default now()
+- sellers: id uuid pk default gen_random_uuid(), user_id uuid references users(id), display_name text, bio text, verified boolean default false, created_at timestamptz default now()
+- products: id uuid pk default gen_random_uuid(), seller_id uuid references sellers(id), title text not null, description text, price_cents integer not null, currency text default 'USD', inventory integer default 0, images text[], category text, service_type text, duration_minutes integer, location_type text default 'remote', published boolean default false, created_at timestamptz default now()
+- services (optional): same fields as products but optimized for bookings (if you prefer separate table)
+- orders: id uuid pk default gen_random_uuid(), buyer_id uuid references users(id), total_cents integer not null, currency text default 'USD', status text default 'pending', stripe_payment_id text, created_at timestamptz default now()
+- order_items: id uuid pk default gen_random_uuid(), order_id uuid references orders(id) on delete cascade, product_id uuid references products(id), quantity integer not null, unit_price_cents integer not null
+- bookings: id uuid pk default gen_random_uuid(), seller_id uuid references sellers(id), buyer_id uuid references users(id), product_id uuid references products(id), start_time timestamptz, end_time timestamptz, status text default 'scheduled', meeting_link text
+- audit_logs: id uuid pk default gen_random_uuid(), actor_id uuid, action text, resource text, metadata jsonb, created_at timestamptz default now()
+- Indexes: products(seller_id), products(category)
+
+RLS Policies (apply and test):
+- products: public SELECT (anon); INSERT/UPDATE/DELETE only for seller owner or admin.
+- orders: buyer can SELECT their orders; admin full access; sellers can read order_items for their products only.
+- bookings: owner access for buyer or seller; admin full access.
+- Ensure auth.role() mapping from Supabase JWT and use auth.uid() for ownership checks.
+
+Serverless Functions to generate:
+- POST /api/checkout/create-session
+  - Creates an orders row with status = 'pending'
+  - Creates order_items rows
+  - Creates Stripe Checkout Session with metadata: order_id and service_type
+  - Returns session.id to client
+- POST /api/webhooks/stripe
+  - Validates Stripe signature using STRIPE_WEBHOOK_SECRET
+  - On checkout.session.completed: update orders.status = 'paid', set stripe_payment_id, create booking if service_type present, notify seller via email
+- Signed upload endpoints for Supabase Storage (server-signed upload URLs)
+- Admin endpoints (server-only) for seller verification, manual refunds (no service key in client)
+
+Stripe integration:
+- Use Stripe test mode for staging
+- Ensure Checkout Session sets metadata.order_id and metadata.service_type
+- Webhook endpoint path: /api/webhooks/stripe (add to Stripe dashboard or use Stripe CLI for testing)
+
+CI and Deploy:
+- GitHub Actions: jobs for lint, unit tests, SAST, build, deploy to staging on push to develop, run E2E checkout test (Playwright/Cypress) against staging, manual approval step to deploy to production branch main
+- Environments: ifa-staging and ifa-prod (separate Supabase projects or schemas and Stripe keys)
+
+Secrets to add in Atoms Environment after scaffold (do NOT paste here):
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_KEY (server-only)
+- STRIPE_PUBLISHABLE_KEY
+- STRIPE_SECRET_KEY (server-only)
+- STRIPE_WEBHOOK_SECRET (server-only)
+- SENTRY_DSN (optional)
+- STORAGE_BUCKET_NAME (optional)
+
+Seed Data for staging:
+- One verified seller (seller.verified = true) with sample Egbo service(s)
+- 5 sample products across categories including category = 'egbo'
+- One buyer account for E2E tests
+- Sample bookings and orders for QA
+
+Acceptance Criteria for staging:
+- Public product listing loads and returns rows from Supabase products table
+- Buyer can create checkout session and complete payment with Stripe test card 4242 4242 4242 4242
+- Webhook updates order status to 'paid' and creates booking when service_type = 'egbo'
+- Seller can create and publish a product; product appears publicly
+- RLS prevents unauthorized edits; service key not exposed to client
+
+Deliverables to generate automatically:
+- SQL migration file with table creation and RLS policies
+- TypeScript serverless functions for checkout and webhook (Next.js API style)
+- GitHub Actions CI YAML with E2E job
+- Seed data JSON for staging
+- Minimal Admin UI pages for orders and seller verification
+- Signed upload client snippet for Supabase Storage
+
+Notes for Atoms agent:
+- Do not include any secret values in generated code or client bundles
+- Mark service keys as server-only in environment settings
+- Provide a staging preview URL and instructions to configure Stripe webhook to that URL
+- Run automated E2E checkout test after deploy and report failures in build logs
+
+Project tags: marketplace, supabase, stripe, nextjs, egbo, bookings, rls, ci
