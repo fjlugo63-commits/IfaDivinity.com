@@ -41,6 +41,43 @@ export default function BookingsPage() {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Demo practitioners shown when no real seller profiles exist
+  const demoPractitioners: DBProfile[] = [
+    {
+      id: 'demo-practitioner-1',
+      email: 'babalawo.adeyemi@ifamarket.com',
+      full_name: 'Chief Babalawo Adeyemi',
+      role: 'seller',
+      bio: 'Senior Babalawo with over 30 years of experience in Ifa divination. Initiated in Ile-Ife, Nigeria. Specializes in Odu interpretation, spiritual counseling, and traditional healing.',
+      phone: '+234-801-234-5678',
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'demo-practitioner-2',
+      email: 'iyanifa.olayinka@ifamarket.com',
+      full_name: 'Iyanifa Olayinka Adesanya',
+      role: 'seller',
+      bio: 'Iyanifa (female Ifa priest) with 15 years of practice. Expert in Ori consultations, spiritual baths, and women\'s spiritual wellness. Based in Lagos, Nigeria.',
+      phone: '+234-802-345-6789',
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'demo-practitioner-3',
+      email: 'babalawo.marcus@ifamarket.com',
+      full_name: 'Babalawo Marcus Thompson',
+      role: 'seller',
+      bio: 'American-born Babalawo initiated in Cuba through the Lucumi tradition. 20 years of experience bridging Yoruba and diaspora spiritual practices. Fluent in English and Spanish.',
+      phone: '+1-305-555-0123',
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ];
+
   useEffect(() => {
     fetchPractitioners();
   }, []);
@@ -53,9 +90,13 @@ export default function BookingsPage() {
         .eq('role', 'seller');
       if (!error && data && data.length > 0) {
         setPractitioners(data);
+      } else {
+        // Use demo practitioners when none exist in DB
+        setPractitioners(demoPractitioners);
       }
     } catch {
-      // Silent
+      // Use demo practitioners on error
+      setPractitioners(demoPractitioners);
     }
   }
 
