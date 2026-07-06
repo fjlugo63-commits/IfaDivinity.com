@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Package, DollarSign, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, DollarSign, Eye, ShieldCheck, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ImageUpload from '@/components/ImageUpload';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, TABLES, DBProduct, DBCategory, DBOrder } from '@/lib/supabase';
+import { supabase, TABLES, DBProduct, DBCategory, DBOrder, DBProfile } from '@/lib/supabase';
 import { logAudit } from '@/lib/audit';
 import { toast } from 'sonner';
 
@@ -31,6 +31,7 @@ export default function SellerDashboard() {
   const [products, setProducts] = useState<DBProduct[]>([]);
   const [categories, setCategories] = useState<DBCategory[]>([]);
   const [orders, setOrders] = useState<DBOrder[]>([]);
+  const [sellerProfile, setSellerProfile] = useState<DBProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<DBProduct | null>(null);
@@ -43,14 +44,30 @@ export default function SellerDashboard() {
   const [stockQuantity, setStockQuantity] = useState('1');
   const [isActive, setIsActive] = useState(true);
   const [productImages, setProductImages] = useState<string[]>([]);
+  const [serviceType, setServiceType] = useState<string>('product');
+  const [durationMinutes, setDurationMinutes] = useState('90');
 
   useEffect(() => {
     if (user) {
       fetchCategories();
       fetchProducts();
       fetchOrders();
+      fetchSellerProfile();
     }
   }, [user]);
+
+  async function fetchSellerProfile() {
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.profiles)
+        .select('*')
+        .eq('id', user!.id)
+        .single();
+      if (!error && data) setSellerProfile(data);
+    } catch {
+      // Silent
+    }
+  }
 
   async function fetchCategories() {
     try {
@@ -82,7 +99,6 @@ export default function SellerDashboard() {
 
   async function fetchOrders() {
     try {
-      // Fetch orders that contain items from this seller
       const { data: orderItems, error: itemsError } = await supabase
         .from(TABLES.order_items)
         .select('order_id')
@@ -111,6 +127,8 @@ export default function SellerDashboard() {
     setStockQuantity('1');
     setIsActive(true);
     setProductImages([]);
+    setServiceType('product');
+    setDurationMinutes('90');
     setDialogOpen(true);
   }
 
@@ -123,12 +141,20 @@ export default function SellerDashboard() {
     setStockQuantity((product.stock_quantity ?? 1).toString());
     setIsActive(product.status === 'active');
     setProductImages(product.images || []);
+    setServiceType(product.service_type || 'product');
+    setDurationMinutes((product.duration_minutes ?? 90).toString());
     setDialogOpen(true);
   }
 
   async function handleSaveProduct(e: React.FormEvent) {
     e.preventDefault();
     const price = parseFloat(priceDollars);
+
+    // Prevent Egbo service creation if not verified
+    if (serviceType === 'egbo' && !sellerProfile?.verified_egbo) {
+      toast.error('You must be verified for Egbo services before creating Egbo listings. Please contact admin.');
+      return;
+    }
 
     const productData = {
       title,
@@ -137,10 +163,13 @@ export default function SellerDashboard() {
       price,
       currency: 'USD',
       category_id: categoryId || null,
-      stock_quantity: parseInt(stockQuantity),
+      stock_quantity: serviceType === 'egbo' ? null : parseInt(stockQuantity),
       status: isActive ? 'active' : 'draft',
       seller_id: user!.id,
       images: productImages,
+      service_type: serviceType === 'product' ? null : serviceType,
+      duration_minutes: serviceType === 'egbo' ? parseInt(durationMinutes) : null,
+      is_digital: serviceType === 'egbo',
     };
 
     try {
@@ -150,7 +179,7 @@ export default function SellerDashboard() {
           .update(productData)
           .eq('id', editingProduct.id);
         if (error) throw error;
-        await logAudit('product.updated', 'products', editingProduct.id, { title });
+        await logAudit('product.updated', 'products', editingProduct.id, { title, service_type: serviceType });
         toast.success('Product updated');
       } else {
         const { data, error } = await supabase
@@ -159,7 +188,7 @@ export default function SellerDashboard() {
           .select('id')
           .single();
         if (error) throw error;
-        await logAudit('product.created', 'products', data?.id, { title });
+        await logAudit('product.created', 'products', data?.id, { title, service_type: serviceType });
         toast.success('Product created');
       }
       setDialogOpen(false);
@@ -182,20 +211,29 @@ export default function SellerDashboard() {
     }
   }
 
-  function getCategoryName(categoryId: string | null) {
-    if (!categoryId) return 'Uncategorized';
-    const cat = categories.find((c) => c.id === categoryId);
+  function getCategoryName(catId: string | null) {
+    if (!catId) return 'Uncategorized';
+    const cat = categories.find((c) => c.id === catId);
     return cat?.name || 'Uncategorized';
   }
 
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  const egboProducts = products.filter((p) => p.service_type === 'egbo');
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-heading font-bold">Seller Dashboard</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-heading font-bold">Seller Dashboard</h1>
+            {sellerProfile?.verified_egbo && (
+              <Badge variant="default" className="bg-green-600 text-white">
+                <ShieldCheck className="h-3 w-3 mr-1" />
+                Egbo Verified
+              </Badge>
+            )}
+          </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={openCreateDialog}>
@@ -207,8 +245,29 @@ export default function SellerDashboard() {
                 <DialogTitle>{editingProduct ? 'Edit Product' : 'Create New Product'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSaveProduct} className="space-y-4">
+                {/* Service Type Selection */}
                 <div className="space-y-2">
-                  <Label htmlFor="title">Product Title</Label>
+                  <Label>Listing Type</Label>
+                  <Select value={serviceType} onValueChange={setServiceType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="product">Physical Product</SelectItem>
+                      <SelectItem value="egbo" disabled={!sellerProfile?.verified_egbo}>
+                        Egbo Service {!sellerProfile?.verified_egbo && '(Verification Required)'}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {serviceType === 'egbo' && !sellerProfile?.verified_egbo && (
+                    <p className="text-xs text-amber-600">
+                      You need Egbo verification to create service listings. Contact admin for approval.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="title">{serviceType === 'egbo' ? 'Service Title' : 'Product Title'}</Label>
                   <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
@@ -220,10 +279,17 @@ export default function SellerDashboard() {
                     <Label htmlFor="price">Price (USD)</Label>
                     <Input id="price" type="number" step="0.01" min="0" value={priceDollars} onChange={(e) => setPriceDollars(e.target.value)} required />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="stock">Stock Quantity</Label>
-                    <Input id="stock" type="number" min="0" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} required />
-                  </div>
+                  {serviceType === 'egbo' ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="duration">Duration (minutes)</Label>
+                      <Input id="duration" type="number" min="15" step="15" value={durationMinutes} onChange={(e) => setDurationMinutes(e.target.value)} required />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="stock">Stock Quantity</Label>
+                      <Input id="stock" type="number" min="0" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} required />
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Category</Label>
@@ -252,14 +318,38 @@ export default function SellerDashboard() {
           </Dialog>
         </div>
 
+        {/* Verification Notice */}
+        {!sellerProfile?.verified_egbo && (
+          <Card className="mb-6 border-amber-200 bg-amber-50">
+            <CardContent className="flex items-center gap-4 p-4">
+              <ShieldCheck className="h-8 w-8 text-amber-600 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-amber-900">Egbo Verification Pending</p>
+                <p className="text-sm text-amber-700">
+                  To offer Egbo divination services, you need admin verification. Your profile is in the review queue.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardContent className="flex items-center gap-4 p-6">
               <Package className="h-8 w-8 text-primary" />
               <div>
                 <p className="text-2xl font-bold">{products.length}</p>
                 <p className="text-sm text-muted-foreground">Products</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-4 p-6">
+              <Clock className="h-8 w-8 text-amber-600" />
+              <div>
+                <p className="text-2xl font-bold">{egboProducts.length}</p>
+                <p className="text-sm text-muted-foreground">Egbo Services</p>
               </div>
             </CardContent>
           </Card>
@@ -315,15 +405,24 @@ export default function SellerDashboard() {
                           {product.images?.[0] ? (
                             <img src={product.images[0]} alt="" className="w-full h-full object-cover rounded" />
                           ) : (
-                            <span>🔮</span>
+                            <span>{product.service_type === 'egbo' ? '🔮' : '📦'}</span>
                           )}
                         </div>
                         <div>
-                          <h3 className="font-medium">{product.title}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{product.title}</h3>
+                            {product.service_type === 'egbo' && (
+                              <Badge variant="outline" className="text-amber-600 border-amber-600 text-xs">Egbo</Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="outline" className="text-xs">{getCategoryName(product.category_id)}</Badge>
                             <span className="text-sm text-muted-foreground">{formatPrice(product.price)}</span>
-                            <span className="text-sm text-muted-foreground">• {product.stock_quantity ?? 0} in stock</span>
+                            {product.service_type === 'egbo' ? (
+                              <span className="text-sm text-muted-foreground">• {product.duration_minutes} min</span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">• {product.stock_quantity ?? 0} in stock</span>
+                            )}
                             {product.status !== 'active' && <Badge variant="secondary" className="text-xs">{product.status}</Badge>}
                           </div>
                         </div>
@@ -360,10 +459,14 @@ export default function SellerDashboard() {
                         <p className="text-sm text-muted-foreground">
                           {new Date(order.created_at).toLocaleDateString()}
                         </p>
+                        {order.notes && <p className="text-xs text-amber-600 mt-1">{order.notes}</p>}
                       </div>
                       <div className="text-right">
                         <p className="font-bold">{formatPrice(order.total_amount)}</p>
-                        <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>{order.status}</Badge>
+                        <Badge variant={
+                          order.status === 'paid' || order.status === 'completed' ? 'default' :
+                          order.status === 'cancelled' || order.status === 'refunded' ? 'destructive' : 'secondary'
+                        }>{order.status}</Badge>
                       </div>
                     </CardContent>
                   </Card>

@@ -8,6 +8,8 @@ export interface CartItem {
   quantity: number;
   image_url: string;
   seller_name: string;
+  seller_id?: string;
+  service_type?: string | null;
 }
 
 interface CartContextType {
@@ -36,6 +38,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
+        // For Egbo services, don't allow quantity increase
+        if (item.service_type === 'egbo') return prev;
         return prev.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
       }
       return [...prev, { ...item, quantity: 1 }];
@@ -51,6 +55,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       removeItem(id);
       return;
     }
+    // For Egbo services, cap at 1
+    const item = items.find((i) => i.id === id);
+    if (item?.service_type === 'egbo' && quantity > 1) return;
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, quantity } : i)));
   }
 

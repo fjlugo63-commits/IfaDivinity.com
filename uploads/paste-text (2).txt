@@ -1,0 +1,122 @@
+TASK: Close all Egbo feature gaps and deliver a production-ready Egbo service flow for Ifa Divinity Marketplace.
+
+SUMMARY
+Implement missing backend, DB, RLS, CI, tests, and admin UX so Egbo services work end-to-end: seller creation → Egbo listing → buyer checkout → Stripe webhook → transactional booking creation → seller notification → admin verification and monitoring. Provide staging preview and CI E2E validation.
+
+PRIORITY (do in order)
+1. Implement Checkout Session function (server-only)
+2. Implement Stripe Webhook handler with transactional booking creation
+3. Apply and test RLS policies for products, orders, order_items, bookings
+4. Add seller verification workflow and admin UI
+5. Add signed upload flow for product/service images
+6. Add E2E tests for Egbo flow and wire into CI
+7. Add monitoring and basic notification hooks (email) for booking/payment events
+
+DETAILED REQUIREMENTS
+
+A. Server functions
+- Create POST /api/checkout/create-session:
+  - Input: cart items, buyer_id (from auth), optional booking selection (product_id + requested start_time)
+  - Actions:
+    - Create orders row with status = 'pending' and total_cents.
+    - Create order_items rows.
+    - If a booking slot was selected, reserve a tentative booking row with status = 'pending_reservation' (use DB transaction).
+    - Create Stripe Checkout Session with metadata: order_id and service_type (set to 'egbo' when product.service_type == 'egbo').
+  - Return: session.id to client.
+  - Use SUPABASE_SERVICE_KEY server-only for DB writes.
+
+- Create POST /api/webhooks/stripe:
+  - Validate signature using STRIPE_WEBHOOK_SECRET.
+  - On checkout.session.completed:
+    - Update orders.status = 'paid' and set stripe_payment_id.
+    - If metadata.service_type == 'egbo':
+      - Finalize booking: update tentative booking to status = 'scheduled' and set meeting_link if applicable.
+      - If no tentative booking existed, create booking row atomically with order update.
+    - Notify seller and buyer via transactional email (send minimal email content; use SENTRY_DSN or configured email provider).
+  - Ensure all DB updates are transactional to avoid double-booking.
+
+- Create server-only admin endpoints:
+  - POST /api/admin/sellers/:id/verify to set sellers.verified_egbo = true/false.
+  - POST /api/admin/orders/:id/refund to trigger Stripe refund (server-only) and update order status.
+
+B. Database and RLS
+- Apply SQL migrations to create/alter tables to include Egbo fields:
+  - products.service_type text
+  - products.duration_minutes integer
+  - bookings.product_id reference products(id)
+  - sellers.verified_egbo boolean default false
+- RLS policies:
+  - products: public SELECT; INSERT/UPDATE/DELETE only for admin or seller owner.
+  - orders: SELECT only for buyer (buyer_id = auth.uid()) or admin; INSERT allowed for authenticated buyers; UPDATE for admin or webhook server role.
+  - order_items: sellers can SELECT order_items for their products; admin full access.
+  - bookings: SELECT/UPDATE only for buyer, seller owner, or admin.
+- Provide SQL migration file and a one‑line command Atoms can run to apply it to staging.
+
+C. Signed uploads and storage
+- Implement signed upload endpoint that returns Supabase Storage signed URL for image uploads (server-only).
+- Update product/service create/edit UI to upload images via signed URL and store image paths in products.images[].
+
+D. Seller verification and admin UX
+- Add admin review queue page listing sellers with pending verification.
+- Add seller profile UI to show verified badge when sellers.verified_egbo = true.
+- Add minimal admin controls to approve/reject Egbo sellers and to view Egbo orders/bookings.
+
+E. E2E tests and CI
+- Add Playwright or Cypress E2E test that:
+  - Creates a seller (or uses seeded verified seller), creates an Egbo service, publishes it.
+  - Buyer flow: add Egbo service to cart, select booking slot, create checkout session, complete payment with test card 4242 4242 4242 4242.
+  - Simulate webhook (use Stripe CLI or test webhook event) and assert orders.status == 'paid' and bookings row exists with status == 'scheduled'.
+- Add CI job to run E2E against staging preview and fail build on regression.
+- Ensure CI includes SAST and a step to run DB migration on staging only.
+
+F. Monitoring and notifications
+- Wire basic error monitoring (Sentry) into serverless functions and log webhook events.
+- Add transactional email hooks for:
+  - Order confirmation to buyer
+  - Booking confirmation to buyer and seller
+  - Seller verification notification to seller
+- Provide instructions for configuring email provider secrets.
+
+SECRETS (to set in Atoms Environment after scaffold)
+- SUPABASE_URL
+- SUPABASE_ANON_KEY (client)
+- SUPABASE_SERVICE_KEY (server-only)
+- STRIPE_PUBLISHABLE_KEY
+- STRIPE_SECRET_KEY (server-only)
+- STRIPE_WEBHOOK_SECRET (server-only)
+- SENTRY_DSN (optional)
+- EMAIL_PROVIDER_API_KEY (server-only)
+- STORAGE_BUCKET_NAME
+
+SEED DATA for staging
+- One verified Egbo seller (sellers.verified_egbo = true)
+- 3 Egbo service listings with duration_minutes and availability slots
+- One buyer account for E2E tests
+- Sample orders and tentative bookings for QA
+
+DELIVERABLES
+- SQL migration file for tables and RLS
+- TypeScript serverless functions: checkout/create-session, webhooks/stripe, admin endpoints, signed upload
+- Playwright/Cypress E2E test suite and CI YAML update
+- Minimal Admin UI pages for seller verification and order management
+- Seed data JSON and a one-line command to load it into staging
+- Staging preview URL and instructions to configure Stripe webhook to: <staging-preview-url>/api/webhooks/stripe
+
+TESTING & ACCEPTANCE
+- After deploy to staging, run E2E test. Acceptance criteria:
+  - Buyer can checkout Egbo service and complete payment with Stripe test card.
+  - Webhook updates order to paid and booking is created and visible to buyer and seller.
+  - RLS prevents unauthorized reads/writes for bookings and product edits.
+  - Admin can verify seller and toggle sellers.verified_egbo.
+
+NOTES FOR AGENT
+- Do not include any secret values in code or client bundles.
+- Mark SUPABASE_SERVICE_KEY and STRIPE_SECRET_KEY as server-only in Atoms.
+- Use transactions for order + booking creation to avoid race conditions.
+- Provide logs and a short runbook for how to test webhooks locally with Stripe CLI.
+
+END TASK
+Please implement the above and return:
+1) links to created files in the project (SQL migration, serverless functions, E2E tests, admin UI files),
+2) staging preview URL,
+3) a short test report showing E2E test results and any failing items.

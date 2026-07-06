@@ -55,6 +55,8 @@ export interface DBProduct {
   digital_file_url: string | null;
   stock_quantity: number | null;
   tags: string[] | null;
+  service_type: string | null;
+  duration_minutes: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +85,7 @@ export interface DBProfile {
   bio: string | null;
   phone: string | null;
   avatar_url: string | null;
+  verified_egbo: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -92,6 +95,7 @@ export interface DBBooking {
   id: string;
   practitioner_id: string | null;
   client_id: string | null;
+  product_id: string | null;
   service_type: string;
   scheduled_at: string;
   duration_minutes: number | null;

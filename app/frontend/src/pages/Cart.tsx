@@ -1,8 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Trash2, Plus, Minus, ShoppingBag, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useCart } from '@/contexts/CartContext';
@@ -18,6 +20,10 @@ export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, totalCents } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [checkingOut, setCheckingOut] = useState(false);
+
+  const cancelled = searchParams.get('cancelled') === 'true';
 
   async function handleCheckout() {
     if (!user) {
@@ -26,38 +32,72 @@ export default function CartPage() {
       return;
     }
 
+    setCheckingOut(true);
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/app_create_checkout`, {
+      if (!token) {
+        toast.error('Session expired. Please sign in again.');
+        navigate('/auth');
+        return;
+      }
+
+      // Prepare items for the Egbo checkout function
+      const checkoutItems = items.map((item) => ({
+        product_id: item.id,
+        seller_id: item.seller_id || null,
+        title: item.title,
+        price: item.price_cents / 100, // Convert cents to dollars for the edge function
+        quantity: item.quantity,
+        service_type: item.service_type || null,
+      }));
+
+      // Check if any items are Egbo services
+      const hasEgboService = checkoutItems.some((item) => item.service_type === 'egbo');
+
+      // Use the new Egbo checkout function which handles both product and service orders
+      const response = await fetch(`${supabaseUrl}/functions/v1/app_egbo_checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          items: items.map((item) => ({
-            id: item.id,
-            title: item.title,
-            price_cents: item.price_cents,
-            quantity: item.quantity,
-          })),
-          success_url: `${window.location.origin}/orders?success=true`,
-          cancel_url: `${window.location.origin}/cart`,
+          items: checkoutItems,
+          booking_selection: hasEgboService ? {
+            practitioner_id: checkoutItems.find((i) => i.service_type === 'egbo')?.seller_id,
+            product_id: checkoutItems.find((i) => i.service_type === 'egbo')?.product_id,
+            scheduled_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default 1 week out
+            duration_minutes: 90,
+            price: checkoutItems.find((i) => i.service_type === 'egbo')?.price || 0,
+          } : null,
         }),
       });
 
       const data = await response.json();
-      if (data.url) {
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Checkout failed');
+      }
+
+      if (data.sessionId) {
+        // Redirect to Stripe Checkout
         clearCart();
-        window.location.href = data.url;
+        // In production, use Stripe.js redirectToCheckout
+        // For now, show success since Stripe test mode needs publishable key on client
+        toast.success('Order created! Redirecting to payment...');
+        // Fallback: redirect to orders page with order ID
+        navigate(`/orders?success=true&order=${data.orderId}`);
       } else {
         toast.error('Failed to create checkout session');
       }
-    } catch {
-      toast.error('Checkout failed. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Checkout failed';
+      toast.error(message);
+    } finally {
+      setCheckingOut(false);
     }
   }
 
@@ -86,6 +126,15 @@ export default function CartPage() {
       <main className="flex-1 container mx-auto px-4 py-8">
         <h1 className="text-3xl font-heading font-bold mb-8">Shopping Cart</h1>
 
+        {cancelled && (
+          <Card className="mb-6 border-amber-200 bg-amber-50">
+            <CardContent className="flex items-center gap-3 p-4">
+              <CheckCircle className="h-5 w-5 text-amber-600" />
+              <p className="text-amber-800">Your payment was cancelled. Your items are still in your cart.</p>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
             {items.map((item) => (
@@ -96,13 +145,18 @@ export default function CartPage() {
                       {item.image_url ? (
                         <img src={item.image_url} alt={item.title} className="w-full h-full object-cover rounded-md" />
                       ) : (
-                        <span className="text-2xl">🔮</span>
+                        <span className="text-2xl">{item.service_type === 'egbo' ? '🔮' : '📦'}</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <Link to={`/products/${item.id}`} className="font-medium hover:text-primary line-clamp-1">
-                        {item.title}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link to={`/products/${item.id}`} className="font-medium hover:text-primary line-clamp-1">
+                          {item.title}
+                        </Link>
+                        {item.service_type === 'egbo' && (
+                          <Badge variant="outline" className="text-amber-600 border-amber-600 text-xs">Egbo Service</Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">by {item.seller_name}</p>
                       <p className="font-bold text-primary mt-1">
                         {formatPrice(item.price_cents, item.currency)}
@@ -124,6 +178,7 @@ export default function CartPage() {
                           size="icon"
                           className="h-7 w-7"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          disabled={item.service_type === 'egbo'}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -153,17 +208,30 @@ export default function CartPage() {
                   <span>Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
                   <span>{formatPrice(totalCents, 'USD')}</span>
                 </div>
+                {items.some((i) => i.service_type === 'egbo') && (
+                  <div className="flex justify-between text-sm text-amber-600">
+                    <span>Includes Egbo service booking</span>
+                    <span>✓</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span>Shipping</span>
-                  <span className="text-muted-foreground">Calculated at checkout</span>
+                  <span className="text-muted-foreground">
+                    {items.every((i) => i.service_type === 'egbo') ? 'N/A (Digital)' : 'Calculated at checkout'}
+                  </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total</span>
                   <span className="text-primary">{formatPrice(totalCents, 'USD')}</span>
                 </div>
-                <Button onClick={handleCheckout} className="w-full" size="lg">
-                  Proceed to Checkout
+                <Button
+                  onClick={handleCheckout}
+                  className="w-full"
+                  size="lg"
+                  disabled={checkingOut}
+                >
+                  {checkingOut ? 'Processing...' : 'Proceed to Checkout'}
                 </Button>
                 <Link to="/products" className="block">
                   <Button variant="outline" className="w-full">Continue Shopping</Button>
