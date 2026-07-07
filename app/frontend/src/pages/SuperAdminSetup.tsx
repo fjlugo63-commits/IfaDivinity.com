@@ -38,28 +38,33 @@ export default function SuperAdminSetup() {
       });
 
       if (error) {
-        // Parse the error context - edge function non-2xx errors come with context
-        let errorMessage = error.message;
-        if (error.context) {
-          try {
-            const ctx = await error.context.json();
-            errorMessage = ctx?.error || errorMessage;
-          } catch {
-            // fallback to original message
+        // Try to extract meaningful error from context
+        let errorMessage = error.message || 'Unknown error occurred';
+        try {
+          if (error.context) {
+            const ctx = typeof error.context.json === 'function' 
+              ? await error.context.json() 
+              : error.context;
+            if (ctx?.error) errorMessage = ctx.error;
           }
+        } catch {
+          // Use original message
         }
         toast.error(`Failed: ${errorMessage}`);
         setResult({ success: false, message: errorMessage });
       } else if (data?.error) {
-        toast.error(`Failed: ${data.error}`);
+        toast.error(data.error);
         setResult({ success: false, message: data.error });
-      } else {
+      } else if (data?.success) {
         toast.success(data.message || 'Super Admin created!');
         setResult({
           success: true,
           message: data.message,
           permissions: data.permissions,
         });
+      } else {
+        toast.error('Unexpected response from server');
+        setResult({ success: false, message: 'Unexpected response format' });
       }
     } catch (err: any) {
       toast.error(`Error: ${err.message}`);
