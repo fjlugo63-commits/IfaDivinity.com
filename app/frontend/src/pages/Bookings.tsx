@@ -124,23 +124,44 @@ export default function BookingsPage() {
       const isDemoPractitioner = selectedPractitioner.startsWith('00000000-0000-0000-0000-');
       const practitionerId = isDemoPractitioner ? null : selectedPractitioner;
 
-      const { error } = await supabase.from(TABLES.bookings).insert({
-        practitioner_id: practitionerId,
-        client_id: user.id,
-        service_type: 'ifa_reading',
-        scheduled_at: scheduledAt,
-        duration_minutes: 60,
-        status: 'confirmed',
-        price: 75.00,
-        meeting_url: `https://meet.ifamarket.com/${Date.now()}`,
-        notes: null,
+      // Use edge function to bypass RLS - runs with service role
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No active session. Please sign in again.');
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/app_book_consultation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          practitioner_id: practitionerId,
+          service_type: 'ifa_reading',
+          scheduled_at: scheduledAt,
+          duration_minutes: 60,
+          price: 75.00,
+          meeting_url: `https://meet.ifamarket.com/${Date.now()}`,
+          notes: null,
+        }),
       });
 
-      if (error) throw error;
+      const result = await response.json();
+      
+      if (!response.ok || result.error) {
+        throw new Error(result.error || result.details || 'Booking failed');
+      }
+
       setBookingConfirmed(true);
       toast.success('Reading booked successfully!');
-    } catch {
-      toast.error('Failed to book reading. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Booking failed:', message);
+      toast.error(`Failed to book reading: ${message}`);
     } finally {
       setLoading(false);
     }
