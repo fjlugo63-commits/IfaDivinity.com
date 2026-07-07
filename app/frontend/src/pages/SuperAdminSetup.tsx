@@ -38,8 +38,18 @@ export default function SuperAdminSetup() {
       });
 
       if (error) {
-        toast.error(`Failed: ${error.message}`);
-        setResult({ success: false, message: error.message });
+        // Parse the error context - edge function non-2xx errors come with context
+        let errorMessage = error.message;
+        if (error.context) {
+          try {
+            const ctx = await error.context.json();
+            errorMessage = ctx?.error || errorMessage;
+          } catch {
+            // fallback to original message
+          }
+        }
+        toast.error(`Failed: ${errorMessage}`);
+        setResult({ success: false, message: errorMessage });
       } else if (data?.error) {
         toast.error(`Failed: ${data.error}`);
         setResult({ success: false, message: data.error });
