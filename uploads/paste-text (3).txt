@@ -1,0 +1,107 @@
+Build a new feature module called **Awo Dashboard** within the Awo Portal.  
+This module must provide Awo practitioners with a clear, actionable overview of their daily workflow.  
+Implement the following components and complete all work through test:
+
+------------------------------------------------------------
+### 1. Awo Dashboard — Functional Requirements
+
+#### 1.1 Upcoming Consultations Panel
+- Display all upcoming consultations for the logged‑in Awo.
+- Show: client name, date/time, consultation type, status.
+- Include quick actions: “Open Consultation Workspace”, “Reschedule”, “Cancel”.
+- Sort by nearest upcoming appointment.
+
+#### 1.2 Quick Actions Panel
+Provide buttons for:
+- “Start New Consultation”
+- “View Today’s Schedule”
+- “Open Client List”
+- “Review Pending Ebo”
+Buttons must be permission‑aware based on subscription entitlements.
+
+#### 1.3 Notifications Panel
+- Show system notifications relevant to the Awo.
+- Types: new client booking, client cancellation, Ebo acceptance, payment confirmation.
+- Include read/unread state.
+- Allow clearing notifications.
+
+#### 1.4 House-Level Visibility (Ifa House Subscription Only)
+If the Awo belongs to an Ifa House with the correct entitlement:
+- Display house-wide upcoming consultations.
+- Display house announcements.
+- Display shared records requiring review.
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Three-column responsive layout:
+  - Column 1: Upcoming Consultations
+  - Column 2: Quick Actions
+  - Column 3: Notifications
+- If House entitlement is active, add a fourth collapsible panel for House visibility.
+
+#### 2.2 Styling
+- Use existing IfaDivinity design system tokens.
+- Dashboard must match the visual style of the Client Portal and global navigation.
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend endpoints for:
+- GET /awo/dashboard/upcoming-consultations
+- GET /awo/dashboard/notifications
+- GET /awo/dashboard/house-visibility (entitlement-gated)
+
+#### 3.2 Data Sources
+- consultations table
+- notifications table
+- house_practitioners table
+- subscription_entitlements table
+
+#### 3.3 Access Control
+- Enforce role-based access: Awo only.
+- Enforce subscription entitlements for house-level visibility.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Link to Consultation Workspace
+- Clicking an upcoming consultation opens the Consultation Workspace module (to be built next).
+
+#### 4.2 Link to Scheduling Module
+- “View Today’s Schedule” opens the Scheduling module.
+
+#### 4.3 Link to Client Management
+- “Open Client List” opens the Client Management module.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Dashboard loads with correct data for Awo.
+- Entitlement logic correctly hides/shows house visibility panel.
+- Notifications mark read/unread correctly.
+
+#### 5.2 Integration Tests
+- Dashboard correctly calls backend endpoints.
+- Quick actions navigate to correct modules.
+- Upcoming consultations open the Consultation Workspace.
+
+#### 5.3 UI Tests
+- Responsive layout works on desktop, tablet, mobile.
+- All panels render correctly with empty states.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Awo Dashboard module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Dashboard integrated into Awo Portal navigation.
+
+------------------------------------------------------------
+
+Complete this module fully and prepare it for integration with Module 2 (Consultation Workspace).
