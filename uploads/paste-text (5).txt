@@ -1,0 +1,141 @@
+Build a new feature module called **Ire/Osogbo Workflow** inside the Awo Portal’s Consultation Workspace.  
+This module must allow an Awo to determine, record, and manage the Ire or Osogbo outcome for the active consultation.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Ire/Osogbo Workflow — Functional Requirements
+
+#### 1.1 Outcome Determination Panel
+- Display two primary outcome categories:
+  - **Ire (Blessing)**
+  - **Osogbo (Misfortune)**
+- When the Awo selects either category, show the corresponding sub‑types.
+
+#### 1.2 Ire Sub‑Types
+Include the following selectable options:
+- Ire Aiku (Long Life)
+- Ire Owó (Wealth)
+- Ire Ará (Health)
+- Ire Ìbìkú (Protection)
+- Ire Ìbáṣepọ̀ (Relationships)
+- Ire Ìrìnà (Travel)
+- Ire Ìmọ̀ (Wisdom)
+- Ire Ìṣẹ̀ (Work)
+- Ire Ìdílé (Family)
+
+#### 1.3 Osogbo Sub‑Types
+Include the following selectable options:
+- Osogbo Ikú (Death)
+- Osogbo Arun (Illness)
+- Osogbo Epe (Curse)
+- Osogbo Ofo (Loss)
+- Osogbo Ewon (Imprisonment)
+- Osogbo Ogu (Conflict)
+- Osogbo Ija (Fight)
+- Osogbo Iponri (Destiny Misalignment)
+- Osogbo Osi (Poverty)
+
+#### 1.4 Confirmation Workflow
+- Awo must explicitly confirm the selected outcome.
+- Require a “Confirm Ire/Osogbo” action.
+- Prevent accidental saves by requiring confirmation.
+
+#### 1.5 Attach Outcome to Consultation Record
+Store:
+- outcome_type (Ire or Osogbo)
+- outcome_subtype
+- confirmed_by (Awo user ID)
+- confirmed_at timestamp
+- consultation_id
+
+#### 1.6 Edit / Update Outcome
+- Allow Awo to update the outcome.
+- Require re-confirmation.
+- Log updates in audit fields.
+
+#### 1.7 Display Outcome in Workspace
+- Show the selected outcome in a styled card.
+- Include:
+  - Category (Ire or Osogbo)
+  - Sub‑type
+  - Timestamp
+  - Awo who confirmed
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Place the Ire/Osogbo panel directly under the confirmed Odu panel.
+- Use a modal or drawer for selecting sub‑types.
+- Display the confirmed outcome in a visually distinct card.
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Ire should use positive color tokens.
+- Osogbo should use warning/danger tokens.
+
+#### 2.3 UX Behavior
+- Disable “Confirm” until both category and sub‑type are selected.
+- Show success toast when saved.
+- Show warning toast when updated.
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- POST /consultations/{id}/ire-osogbo
+- PUT /consultations/{id}/ire-osogbo
+- GET /consultations/{id}/ire-osogbo
+
+#### 3.2 Data Sources
+- ire_osogbo table
+- consultations table
+- audit fields
+
+#### 3.3 Access Control
+- Only Awo role can set or update outcome.
+- Must be tied to an active consultation.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with Manual Odu Entry (Module 2A)
+- Outcome panel must refresh when Odu is updated.
+- Outcome cannot be confirmed until Odu is confirmed.
+
+#### 4.2 Integration with Ebo Workflow (Module 2C)
+- After outcome confirmation, trigger Ebo Workflow initialization.
+- Pass outcome_type and outcome_subtype to Ebo module.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- All Ire and Osogbo sub‑types load correctly.
+- Confirmation workflow enforces required steps.
+- Audit fields populate correctly.
+
+#### 5.2 Integration Tests
+- Outcome attaches to consultation record.
+- Updating outcome triggers re-confirmation.
+- Workspace refreshes dependent modules.
+
+#### 5.3 UI Tests
+- Modal/drawer opens and closes correctly.
+- Confirm button enables/disables correctly.
+- Responsive layout works on desktop/tablet/mobile.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Ire/Osogbo Workflow module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated into Consultation Workspace.
+- Ready for Module 2C (Ebo Workflow).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare it for integration with Module 2C.

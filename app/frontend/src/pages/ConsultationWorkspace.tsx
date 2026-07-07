@@ -12,6 +12,23 @@ import {
   Grid3X3,
   List,
   Filter,
+  Sun,
+  CloudLightning,
+  Shield,
+  Heart,
+  Compass,
+  Brain,
+  Briefcase,
+  Users,
+  Clock,
+  Skull,
+  Bug,
+  Zap,
+  MinusCircle,
+  Lock,
+  Swords,
+  Target,
+  TrendingDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -39,7 +56,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, DBOduReference, DBConsultationOdu, DBConsultation } from '@/lib/supabase';
+import { supabase, DBOduReference, DBConsultationOdu, DBConsultation, DBIreOsogbo, IreOsogboSubtype } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -73,6 +90,69 @@ async function callOduAPI(action: string, method: string = 'GET', body?: Record<
   }
 
   return data;
+}
+
+// Helper to call the ire/osogbo edge function
+async function callIreOsogboAPI(action: string, method: string = 'GET', body?: Record<string, unknown>, params?: Record<string, string>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated');
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const searchParams = new URLSearchParams({ action, ...params });
+  const url = `${supabaseUrl}/functions/v1/app_ire_osogbo?${searchParams.toString()}`;
+
+  const options: RequestInit = {
+    method,
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+  };
+
+  if (body && (method === 'POST' || method === 'PUT')) {
+    options.body = JSON.stringify(body);
+  }
+
+  const res = await fetch(url, options);
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || 'API request failed');
+  }
+
+  return data;
+}
+
+// Ire sub-types with icons
+const IRE_SUBTYPES: (IreOsogboSubtype & { icon: React.ElementType })[] = [
+  { key: 'ire_aiku', label: 'Ire Aiku', meaning: 'Long Life', icon: Clock },
+  { key: 'ire_owo', label: 'Ire Owó', meaning: 'Wealth', icon: Sun },
+  { key: 'ire_ara', label: 'Ire Ará', meaning: 'Health', icon: Heart },
+  { key: 'ire_ibiku', label: 'Ire Ìbìkú', meaning: 'Protection', icon: Shield },
+  { key: 'ire_ibasepo', label: 'Ire Ìbáṣepọ̀', meaning: 'Relationships', icon: Users },
+  { key: 'ire_irina', label: 'Ire Ìrìnà', meaning: 'Travel', icon: Compass },
+  { key: 'ire_imo', label: 'Ire Ìmọ̀', meaning: 'Wisdom', icon: Brain },
+  { key: 'ire_ise', label: 'Ire Ìṣẹ̀', meaning: 'Work', icon: Briefcase },
+  { key: 'ire_idile', label: 'Ire Ìdílé', meaning: 'Family', icon: Users },
+];
+
+// Osogbo sub-types with icons
+const OSOGBO_SUBTYPES: (IreOsogboSubtype & { icon: React.ElementType })[] = [
+  { key: 'osogbo_iku', label: 'Osogbo Ikú', meaning: 'Death', icon: Skull },
+  { key: 'osogbo_arun', label: 'Osogbo Arun', meaning: 'Illness', icon: Bug },
+  { key: 'osogbo_epe', label: 'Osogbo Epe', meaning: 'Curse', icon: Zap },
+  { key: 'osogbo_ofo', label: 'Osogbo Ofo', meaning: 'Loss', icon: MinusCircle },
+  { key: 'osogbo_ewon', label: 'Osogbo Ewon', meaning: 'Imprisonment', icon: Lock },
+  { key: 'osogbo_ogu', label: 'Osogbo Ogu', meaning: 'Conflict', icon: Swords },
+  { key: 'osogbo_ija', label: 'Osogbo Ija', meaning: 'Fight', icon: CloudLightning },
+  { key: 'osogbo_iponri', label: 'Osogbo Iponri', meaning: 'Destiny Misalignment', icon: Target },
+  { key: 'osogbo_osi', label: 'Osogbo Osi', meaning: 'Poverty', icon: TrendingDown },
+];
+
+function getSubtypeInfo(outcomeType: string, subtypeKey: string) {
+  const list = outcomeType === 'ire' ? IRE_SUBTYPES : OSOGBO_SUBTYPES;
+  return list.find(s => s.key === subtypeKey);
 }
 
 // Binary pattern visual component
@@ -586,6 +666,419 @@ function SelectedOduCard({
   );
 }
 
+// ============ IRE/OSOGBO WORKFLOW PANEL ============
+function IreOsogboPanel({
+  consultationId,
+  oduConfirmed,
+  outcome,
+  onOutcomeChange,
+}: {
+  consultationId: string;
+  oduConfirmed: boolean;
+  outcome: DBIreOsogbo | null;
+  onOutcomeChange: (outcome: DBIreOsogbo | null) => void;
+}) {
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<'ire' | 'osogbo' | null>(null);
+  const [selectedSubtype, setSelectedSubtype] = useState<string | null>(null);
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [updateReason, setUpdateReason] = useState('');
+
+  const handleOpenSelector = (update: boolean = false) => {
+    setIsUpdateMode(update);
+    setSelectedCategory(null);
+    setSelectedSubtype(null);
+    setUpdateReason('');
+    setSelectorOpen(true);
+  };
+
+  const handleCategorySelect = (category: 'ire' | 'osogbo') => {
+    setSelectedCategory(category);
+    setSelectedSubtype(null);
+  };
+
+  const handleSubtypeSelect = (subtypeKey: string) => {
+    setSelectedSubtype(subtypeKey);
+  };
+
+  const handleProceedToConfirm = () => {
+    if (selectedCategory && selectedSubtype) {
+      setSelectorOpen(false);
+      setConfirmOpen(true);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedCategory || !selectedSubtype || !consultationId) return;
+    setSaving(true);
+
+    try {
+      if (isUpdateMode) {
+        const data = await callIreOsogboAPI('update-outcome', 'PUT', {
+          consultation_id: consultationId,
+          outcome_type: selectedCategory,
+          outcome_subtype: selectedSubtype,
+          update_reason: updateReason || null,
+        });
+        onOutcomeChange(data.outcome);
+        toast.warning('Outcome updated', {
+          description: `Changed to ${getSubtypeInfo(selectedCategory, selectedSubtype)?.label}`,
+        });
+      } else {
+        const data = await callIreOsogboAPI('save-outcome', 'POST', {
+          consultation_id: consultationId,
+          outcome_type: selectedCategory,
+          outcome_subtype: selectedSubtype,
+        });
+        onOutcomeChange(data.outcome);
+        toast.success('Outcome confirmed and saved', {
+          description: `${getSubtypeInfo(selectedCategory, selectedSubtype)?.label} recorded`,
+        });
+      }
+      setConfirmOpen(false);
+      setSelectedCategory(null);
+      setSelectedSubtype(null);
+      setUpdateReason('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save outcome';
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // If Odu not confirmed yet, show gated state
+  if (!oduConfirmed) {
+    return (
+      <Card className="border-dashed">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg text-muted-foreground">
+            <Sun className="h-5 w-5" />
+            Ire / Osogbo Workflow
+          </CardTitle>
+          <CardDescription>
+            Awaiting Odu confirmation before outcome can be determined
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-24 flex items-center justify-center bg-muted/20 rounded-lg border border-dashed">
+            <p className="text-sm text-muted-foreground">
+              ⏳ Confirm the Odu first to unlock this panel
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If outcome already confirmed, show the result card
+  if (outcome) {
+    const subtypeInfo = getSubtypeInfo(outcome.outcome_type, outcome.outcome_subtype);
+    const isIre = outcome.outcome_type === 'ire';
+    const IconComponent = subtypeInfo?.icon || Sun;
+
+    return (
+      <Card className={`border ${isIre ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-transparent' : 'border-red-300 bg-gradient-to-br from-red-50 to-transparent'}`}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className={`flex items-center gap-2 text-lg ${isIre ? 'text-emerald-700' : 'text-red-700'}`}>
+              {isIre ? <Sun className="h-5 w-5 text-emerald-500" /> : <CloudLightning className="h-5 w-5 text-red-500" />}
+              {isIre ? 'Ire (Blessing)' : 'Osogbo (Misfortune)'}
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleOpenSelector(true)}
+              className="text-xs h-7 gap-1"
+            >
+              <Edit3 className="h-3 w-3" />
+              Change
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className={`flex items-center gap-4 p-4 rounded-lg ${isIre ? 'bg-emerald-100/50' : 'bg-red-100/50'}`}>
+            <div className={`p-3 rounded-full ${isIre ? 'bg-emerald-200' : 'bg-red-200'}`}>
+              <IconComponent className={`h-6 w-6 ${isIre ? 'text-emerald-700' : 'text-red-700'}`} />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-lg">{subtypeInfo?.label || outcome.outcome_subtype}</h4>
+              <p className={`text-sm ${isIre ? 'text-emerald-600' : 'text-red-600'}`}>
+                {subtypeInfo?.meaning}
+              </p>
+            </div>
+            <Badge variant={isIre ? 'default' : 'destructive'} className="text-xs">
+              {isIre ? 'Blessing' : 'Misfortune'}
+            </Badge>
+          </div>
+
+          <Separator className="my-3" />
+
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <span>Confirmed: {new Date(outcome.confirmed_at).toLocaleString()}</span>
+            {outcome.updated_at && (
+              <span className="text-amber-600">
+                Updated: {new Date(outcome.updated_at).toLocaleString()}
+              </span>
+            )}
+          </div>
+          {outcome.update_reason && (
+            <p className="text-xs text-amber-600 mt-1">
+              Update reason: {outcome.update_reason}
+            </p>
+          )}
+          {outcome.previous_outcome_type && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Previous: {getSubtypeInfo(outcome.previous_outcome_type, outcome.previous_outcome_subtype || '')?.label || outcome.previous_outcome_subtype}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // No outcome yet — show selection prompt
+  return (
+    <>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Sun className="h-5 w-5 text-primary" />
+            Ire / Osogbo Workflow
+          </CardTitle>
+          <CardDescription>
+            Determine the outcome revealed by the Odu
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="p-3 bg-emerald-100 rounded-full">
+                <Sun className="h-8 w-8 text-emerald-600" />
+              </div>
+              <span className="text-muted-foreground font-medium">or</span>
+              <div className="p-3 bg-red-100 rounded-full">
+                <CloudLightning className="h-8 w-8 text-red-600" />
+              </div>
+            </div>
+            <p className="text-muted-foreground text-sm mb-4">
+              Select whether the divination reveals Ire (Blessing) or Osogbo (Misfortune)
+            </p>
+            <Button onClick={() => handleOpenSelector(false)} className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Determine Outcome
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Outcome Selector Dialog */}
+      <Dialog open={selectorOpen} onOpenChange={setSelectorOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {isUpdateMode ? (
+                <>
+                  <Edit3 className="h-5 w-5 text-amber-500" />
+                  Update Outcome
+                </>
+              ) : (
+                <>
+                  <Sun className="h-5 w-5 text-primary" />
+                  Determine Ire / Osogbo
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {!selectedCategory
+                ? 'Select the primary outcome category'
+                : `Select the specific ${selectedCategory === 'ire' ? 'blessing' : 'misfortune'} type`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Category Selection */}
+          {!selectedCategory && (
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <button
+                onClick={() => handleCategorySelect('ire')}
+                className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all cursor-pointer"
+              >
+                <div className="p-4 bg-emerald-100 rounded-full">
+                  <Sun className="h-10 w-10 text-emerald-600" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-bold text-lg text-emerald-700">Ire</h3>
+                  <p className="text-sm text-emerald-600">Blessing</p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleCategorySelect('osogbo')}
+                className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-red-200 hover:border-red-400 hover:bg-red-50 transition-all cursor-pointer"
+              >
+                <div className="p-4 bg-red-100 rounded-full">
+                  <CloudLightning className="h-10 w-10 text-red-600" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-bold text-lg text-red-700">Osogbo</h3>
+                  <p className="text-sm text-red-600">Misfortune</p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Sub-type Selection */}
+          {selectedCategory && (
+            <>
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedCategory(null)}
+                  className="h-7 text-xs"
+                >
+                  ← Back
+                </Button>
+                <Badge variant={selectedCategory === 'ire' ? 'default' : 'destructive'}>
+                  {selectedCategory === 'ire' ? 'Ire (Blessing)' : 'Osogbo (Misfortune)'}
+                </Badge>
+              </div>
+              <ScrollArea className="max-h-[40vh]">
+                <div className="space-y-2 pr-4">
+                  {(selectedCategory === 'ire' ? IRE_SUBTYPES : OSOGBO_SUBTYPES).map((subtype) => {
+                    const IconComp = subtype.icon;
+                    const isSelected = selectedSubtype === subtype.key;
+                    const colorClass = selectedCategory === 'ire'
+                      ? isSelected ? 'border-emerald-400 bg-emerald-50' : 'hover:border-emerald-200 hover:bg-emerald-50/50'
+                      : isSelected ? 'border-red-400 bg-red-50' : 'hover:border-red-200 hover:bg-red-50/50';
+
+                    return (
+                      <button
+                        key={subtype.key}
+                        onClick={() => handleSubtypeSelect(subtype.key)}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${colorClass}`}
+                      >
+                        <div className={`p-2 rounded-full ${selectedCategory === 'ire' ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                          <IconComp className={`h-5 w-5 ${selectedCategory === 'ire' ? 'text-emerald-600' : 'text-red-600'}`} />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className="font-medium text-sm">{subtype.label}</p>
+                          <p className="text-xs text-muted-foreground">{subtype.meaning}</p>
+                        </div>
+                        {isSelected && (
+                          <CheckCircle2 className={`h-5 w-5 ${selectedCategory === 'ire' ? 'text-emerald-500' : 'text-red-500'}`} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectorOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleProceedToConfirm}
+              disabled={!selectedCategory || !selectedSubtype}
+              className="gap-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Proceed to Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {isUpdateMode ? (
+                <>
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  Confirm Outcome Update
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  Confirm Ire/Osogbo Outcome
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {isUpdateMode
+                ? 'You are about to change the recorded outcome. This action will be logged.'
+                : 'Please confirm the outcome determined during this divination session.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCategory && selectedSubtype && (
+            <div className={`border rounded-lg p-4 ${selectedCategory === 'ire' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-full ${selectedCategory === 'ire' ? 'bg-emerald-200' : 'bg-red-200'}`}>
+                  {(() => {
+                    const info = getSubtypeInfo(selectedCategory, selectedSubtype);
+                    const Icon = info?.icon || Sun;
+                    return <Icon className={`h-6 w-6 ${selectedCategory === 'ire' ? 'text-emerald-700' : 'text-red-700'}`} />;
+                  })()}
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg">
+                    {getSubtypeInfo(selectedCategory, selectedSubtype)?.label}
+                  </h4>
+                  <p className={`text-sm ${selectedCategory === 'ire' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {getSubtypeInfo(selectedCategory, selectedSubtype)?.meaning}
+                  </p>
+                  <Badge variant={selectedCategory === 'ire' ? 'default' : 'destructive'} className="mt-1 text-xs">
+                    {selectedCategory === 'ire' ? 'Blessing' : 'Misfortune'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isUpdateMode && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Reason for update (optional)</label>
+              <Textarea
+                placeholder="Why is the outcome being changed?"
+                value={updateReason}
+                onChange={(e) => setUpdateReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={saving}
+              className="gap-2"
+            >
+              {saving ? (
+                'Saving...'
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  {isUpdateMode ? 'Confirm Update' : 'Confirm Outcome'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ============ MAIN CONSULTATION WORKSPACE ============
 export default function ConsultationWorkspace() {
   const { user, userRole, loading: authLoading } = useAuth();
@@ -594,8 +1087,10 @@ export default function ConsultationWorkspace() {
 
   const [consultation, setConsultation] = useState<DBConsultation | null>(null);
   const [consultationOdu, setConsultationOdu] = useState<DBConsultationOdu | null>(null);
+  const [ireOsogboOutcome, setIreOsogboOutcome] = useState<DBIreOsogbo | null>(null);
   const [loadingConsultation, setLoadingConsultation] = useState(true);
   const [loadingOdu, setLoadingOdu] = useState(true);
+  const [loadingOutcome, setLoadingOutcome] = useState(true);
   const [savingOdu, setSavingOdu] = useState(false);
 
   // Dialog states
@@ -646,12 +1141,30 @@ export default function ConsultationWorkspace() {
     }
   }, [consultationId]);
 
+  // Fetch existing Ire/Osogbo outcome
+  const fetchIreOsogboOutcome = useCallback(async () => {
+    if (!consultationId) return;
+    setLoadingOutcome(true);
+    try {
+      const data = await callIreOsogboAPI('consultation-outcome', 'GET', undefined, {
+        consultation_id: consultationId,
+      });
+      setIreOsogboOutcome(data.outcome || null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load outcome';
+      console.error(message);
+    } finally {
+      setLoadingOutcome(false);
+    }
+  }, [consultationId]);
+
   useEffect(() => {
     if (user && (userRole === 'seller' || userRole === 'admin')) {
       fetchConsultation();
       fetchConsultationOdu();
+      fetchIreOsogboOutcome();
     }
-  }, [user, userRole, fetchConsultation, fetchConsultationOdu]);
+  }, [user, userRole, fetchConsultation, fetchConsultationOdu, fetchIreOsogboOutcome]);
 
   // Handle Odu selection from selector
   const handleOduSelected = (odu: DBOduReference) => {
@@ -848,30 +1361,21 @@ export default function ConsultationWorkspace() {
             </Card>
           </div>
 
-          {/* RIGHT PANEL: Future modules (Ire/Osogbo, Ebo, Notes) */}
+          {/* RIGHT PANEL: Ire/Osogbo, Ebo, Notes */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Ire/Osogbo Workflow Placeholder */}
-            <Card className="border-dashed">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-muted-foreground">
-                  Ire / Osogbo Workflow
-                </CardTitle>
-                <CardDescription>
-                  Module 2B — Will activate after Odu confirmation
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-32 flex items-center justify-center bg-muted/20 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    {consultationOdu
-                      ? '✓ Odu confirmed — Ready for Ire/Osogbo determination'
-                      : 'Awaiting Odu confirmation...'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Ire/Osogbo Workflow - Active Module */}
+            {loadingOutcome ? (
+              <Skeleton className="h-48 w-full" />
+            ) : (
+              <IreOsogboPanel
+                consultationId={consultationId}
+                oduConfirmed={!!consultationOdu}
+                outcome={ireOsogboOutcome}
+                onOutcomeChange={(newOutcome) => setIreOsogboOutcome(newOutcome)}
+              />
+            )}
 
-            {/* Ebo Workflow Placeholder */}
+            {/* Ebo Workflow Placeholder - Integration Ready */}
             <Card className="border-dashed">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg text-muted-foreground">
@@ -884,9 +1388,11 @@ export default function ConsultationWorkspace() {
               <CardContent>
                 <div className="h-24 flex items-center justify-center bg-muted/20 rounded-lg">
                   <p className="text-sm text-muted-foreground">
-                    {consultationOdu
-                      ? '✓ Odu confirmed — Ready for Ebo prescription'
-                      : 'Awaiting Odu confirmation...'}
+                    {ireOsogboOutcome
+                      ? `✓ ${ireOsogboOutcome.outcome_type === 'ire' ? 'Ire' : 'Osogbo'} confirmed — Ready for Ebo prescription`
+                      : consultationOdu
+                      ? '⏳ Awaiting Ire/Osogbo determination...'
+                      : '⏳ Awaiting Odu confirmation...'}
                   </p>
                 </div>
               </CardContent>

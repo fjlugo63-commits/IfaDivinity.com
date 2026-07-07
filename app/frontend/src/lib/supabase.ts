@@ -44,6 +44,7 @@ export const TABLES = {
   house_announcements: 'app_340b9f1944_house_announcements',
   odu_reference: 'app_340b9f1944_odu_reference',
   consultation_odu: 'app_340b9f1944_consultation_odu',
+  ire_osogbo: 'app_340b9f1944_ire_osogbo',
 } as const;
 
 // Product type matching actual DB schema
@@ -222,6 +223,29 @@ export interface DBOduReference {
   position: number;
   description: string | null;
   created_at: string;
+}
+
+// Ire/Osogbo outcome type
+export interface DBIreOsogbo {
+  id: string;
+  consultation_id: string;
+  outcome_type: 'ire' | 'osogbo';
+  outcome_subtype: string;
+  confirmed_by: string;
+  confirmed_at: string;
+  updated_by: string | null;
+  updated_at: string | null;
+  update_reason: string | null;
+  previous_outcome_type: string | null;
+  previous_outcome_subtype: string | null;
+  created_at: string;
+}
+
+// Ire/Osogbo sub-type definition
+export interface IreOsogboSubtype {
+  key: string;
+  label: string;
+  meaning: string;
 }
 
 // Consultation Odu type
