@@ -16,6 +16,7 @@ import Admin from './pages/Admin';
 import AuthCallback from './pages/AuthCallback';
 import AuthError from './pages/AuthError';
 import SuperAdminSetup from './pages/SuperAdminSetup';
+import AwoDashboard from './pages/AwoDashboard';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const AppRoutes = () => (
     <Route path="/orders" element={<Orders />} />
     <Route path="/bookings" element={<Bookings />} />
     <Route path="/seller/dashboard" element={<SellerDashboard />} />
+    <Route path="/awo/dashboard" element={<AwoDashboard />} />
     <Route path="/admin" element={<Admin />} />
     <Route path="/auth/callback" element={<AuthCallback />} />
     <Route path="/auth/error" element={<AuthError />} />

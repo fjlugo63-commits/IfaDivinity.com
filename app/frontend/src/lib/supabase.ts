@@ -36,6 +36,12 @@ export const TABLES = {
   order_items: 'app_340b9f1944_order_items',
   bookings: 'app_340b9f1944_bookings',
   reviews: 'app_340b9f1944_reviews',
+  consultations: 'app_340b9f1944_consultations',
+  notifications: 'app_340b9f1944_notifications',
+  ifa_houses: 'app_340b9f1944_ifa_houses',
+  house_practitioners: 'app_340b9f1944_house_practitioners',
+  subscription_entitlements: 'app_340b9f1944_subscription_entitlements',
+  house_announcements: 'app_340b9f1944_house_announcements',
 } as const;
 
 // Product type matching actual DB schema
@@ -134,5 +140,72 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   full_name: string | null;
+  created_at: string;
+}
+
+// Consultation type for Awo Dashboard
+export interface DBConsultation {
+  id: string;
+  awo_id: string;
+  client_id: string | null;
+  client_name: string;
+  consultation_type: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  status: string;
+  notes: string | null;
+  meeting_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Notification type for Awo Dashboard
+export interface DBNotification {
+  id: string;
+  user_id: string;
+  notification_type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+// Ifa House type
+export interface DBIfaHouse {
+  id: string;
+  name: string;
+  description: string | null;
+  owner_id: string;
+  created_at: string;
+}
+
+// House Practitioner membership
+export interface DBHousePractitioner {
+  id: string;
+  house_id: string;
+  practitioner_id: string;
+  role: string;
+  joined_at: string;
+}
+
+// Subscription Entitlement
+export interface DBSubscriptionEntitlement {
+  id: string;
+  user_id: string | null;
+  house_id: string | null;
+  entitlement_key: string;
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
+}
+
+// House Announcement
+export interface DBAnnouncement {
+  id: string;
+  house_id: string;
+  author_id: string;
+  title: string;
+  content: string;
   created_at: string;
 }

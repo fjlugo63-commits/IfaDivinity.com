@@ -31,6 +31,9 @@ export default function Header() {
               <nav className="flex flex-col gap-4 mt-8">
                 <Link to="/products" className="text-lg font-medium hover:text-primary">Products</Link>
                 <Link to="/bookings" className="text-lg font-medium hover:text-primary">Book a Reading</Link>
+                {(userRole === 'seller' || userRole === 'admin') && (
+                  <Link to="/awo/dashboard" className="text-lg font-medium hover:text-primary">Awo Dashboard</Link>
+                )}
                 {userRole === 'seller' && (
                   <Link to="/seller/dashboard" className="text-lg font-medium hover:text-primary">Seller Dashboard</Link>
                 )}
@@ -48,6 +51,9 @@ export default function Header() {
           <nav className="hidden md:flex items-center gap-6 ml-8">
             <Link to="/products" className="text-sm font-medium hover:text-primary transition-colors">Products</Link>
             <Link to="/bookings" className="text-sm font-medium hover:text-primary transition-colors">Book a Reading</Link>
+            {(userRole === 'seller' || userRole === 'admin') && (
+              <Link to="/awo/dashboard" className="text-sm font-medium hover:text-primary transition-colors">Awo Dashboard</Link>
+            )}
             {userRole === 'seller' && (
               <Link to="/seller/dashboard" className="text-sm font-medium hover:text-primary transition-colors">Seller Dashboard</Link>
             )}
@@ -86,6 +92,11 @@ export default function Header() {
                 <DropdownMenuItem asChild>
                   <Link to="/orders">My Orders</Link>
                 </DropdownMenuItem>
+                {(userRole === 'seller' || userRole === 'admin') && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/awo/dashboard">Awo Dashboard</Link>
+                  </DropdownMenuItem>
+                )}
                 {userRole === 'seller' && (
                   <DropdownMenuItem asChild>
                     <Link to="/seller/dashboard">Seller Dashboard</Link>
