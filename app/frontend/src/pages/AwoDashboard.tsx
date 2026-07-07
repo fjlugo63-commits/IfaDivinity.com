@@ -271,6 +271,13 @@ function QuickActionsPanel({
       entitlement: null,
     },
     {
+      label: 'View Past Consultations',
+      icon: FileSearch,
+      color: 'bg-teal-600 text-white hover:bg-teal-700',
+      onClick: () => navigate('/awo/history'),
+      entitlement: null,
+    },
+    {
       label: 'Review Pending Ebo',
       icon: ListChecks,
       color: 'bg-emerald-600 text-white hover:bg-emerald-700',

@@ -1,0 +1,146 @@
+Build a new feature module called **Consultation History** inside the Awo Portal’s Consultation Workspace.  
+This module must allow an Awo to view all past consultations, including Odu, Ire/Osogbo, Ebo, Notes, and Summary.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Consultation History — Functional Requirements
+
+#### 1.1 Consultation List
+- Display all past consultations for the logged‑in Awo.
+- Show:
+  - Client name
+  - Date/time
+  - Consultation type
+  - Status (Completed, Cancelled)
+- Sort by most recent consultation first.
+- Provide search by:
+  - Client name
+  - Date range
+  - Odu
+  - Outcome (Ire/Osogbo)
+
+#### 1.2 Consultation Detail View
+When an Awo selects a consultation, display:
+
+##### 1.2.1 Odu Section
+- Confirmed Odu name
+- Aliases
+- Binary pattern (if stored)
+- Timestamp of confirmation
+
+##### 1.2.2 Ire/Osogbo Section
+- Outcome category (Ire or Osogbo)
+- Outcome subtype
+- Timestamp of confirmation
+
+##### 1.2.3 Ebo Section
+- Ebo category
+- Ritual items
+- Instructions
+- Status (Pending, In Progress, Completed, Cancelled)
+
+##### 1.2.4 Notes Section
+- All notes recorded during the consultation
+- Timestamps
+- Rich text formatting preserved
+
+##### 1.2.5 Summary Section
+- Full structured summary
+- Client-friendly version
+- Timestamp of confirmation
+
+#### 1.3 Export Hooks (Phase 1)
+- Provide “Copy Summary” button.
+- Provide “Send to Client Portal” button (integration stub only).
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Two-panel layout:
+  - Left panel: Consultation list
+  - Right panel: Consultation detail view
+- Use tabs or collapsible sections for:
+  - Odu
+  - Ire/Osogbo
+  - Ebo
+  - Notes
+  - Summary
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Detail view must visually match the Consultation Workspace modules.
+
+#### 2.3 UX Behavior
+- Smooth transitions between consultations.
+- Empty states for:
+  - No consultations found
+  - No notes
+  - No summary
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- GET /consultations/history
+- GET /consultations/{id}/details
+
+#### 3.2 Data Sources
+- consultations table
+- consultation_odu table
+- ire_osogbo table
+- ebo table
+- consultation_notes table
+- consultation_summary table
+
+#### 3.3 Access Control
+- Only Awo role can view consultation history.
+- Must only show consultations belonging to the logged‑in Awo or their Ifa House (if entitlement allows).
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with Modules 2A–2D
+Consultation History must display all data created by:
+- Manual Odu Entry (2A)
+- Ire/Osogbo Workflow (2B)
+- Ebo Workflow (2C)
+- Notes + Summary (2D)
+
+#### 4.2 Integration with Awo Dashboard
+- “View Past Consultations” button must open Consultation History.
+
+#### 4.3 Integration with Client Management
+- Selecting a client in Client Management must filter Consultation History to that client.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Consultation list loads correctly.
+- Detail view loads correct Odu, Outcome, Ebo, Notes, Summary.
+- Search filters work correctly.
+
+#### 5.2 Integration Tests
+- History view correctly pulls data from all modules.
+- Navigation between consultations works without errors.
+
+#### 5.3 UI Tests
+- Responsive layout works on desktop/tablet/mobile.
+- Tabs/collapsible sections behave correctly.
+- Empty states render correctly.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Consultation History module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated into Consultation Workspace.
+- Completes Phase Group 2 (Awo Portal Core).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare for Phase Group 3 (Smart Opele Integration).
