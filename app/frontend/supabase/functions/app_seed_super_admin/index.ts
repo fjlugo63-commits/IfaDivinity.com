@@ -16,7 +16,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(JSON.stringify({ error: "Server configuration error: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" }), {
+      return new Response(JSON.stringify({ error: "Server configuration error: missing environment variables" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -24,13 +24,18 @@ serve(async (req) => {
 
     const superAdminSecret = Deno.env.get("SUPER_ADMIN_SECRET") || "ifa-super-admin-2026";
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     let body;
     try {
       body = await req.json();
     } catch {
-      return new Response(JSON.stringify({ error: "Invalid JSON body. Please provide email, password, name, and secret." }), {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -38,9 +43,8 @@ serve(async (req) => {
 
     const { email, password, name, secret } = body;
 
-    // Validate secret
     if (!secret || secret !== superAdminSecret) {
-      return new Response(JSON.stringify({ error: "Invalid admin secret key. The default is: ifa-super-admin-2026" }), {
+      return new Response(JSON.stringify({ error: "Invalid admin secret key. Default is: ifa-super-admin-2026" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -60,72 +64,114 @@ serve(async (req) => {
       });
     }
 
-    let userId: string;
+    // Step 1: Try to sign up the user using the regular signUp method first
+    // This avoids issues with admin.createUser which may not be available
+    let userId: string | null = null;
     let isExisting = false;
 
-    // First, try to create the user. If it fails with "already registered", we know they exist.
-    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+    // Try admin createUser first
+    const createResult = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: { full_name: name || "Super Admin", role: "admin" },
     });
 
-    if (createError) {
-      // Check if user already exists
-      if (createError.message.toLowerCase().includes("already") || 
-          createError.message.toLowerCase().includes("exists") ||
-          createError.message.toLowerCase().includes("registered") ||
-          createError.status === 422) {
+    if (createResult.error) {
+      const errMsg = createResult.error.message || JSON.stringify(createResult.error) || "";
+      
+      // If user already exists, try to find and update them
+      if (errMsg.includes("already") || errMsg.includes("exists") || errMsg.includes("registered") || errMsg.includes("duplicate")) {
+        // Try to find the user
+        const listResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 100 });
         
-        // User exists - find them via getUserByEmail (available in newer supabase-js)
-        // Fallback: try listing users with a filter
-        const { data: userList, error: listErr } = await supabase.auth.admin.listUsers({
-          page: 1,
-          perPage: 50,
-        });
+        if (listResult.error) {
+          // If listUsers also fails, try a different approach - check profiles table
+          const { data: profileData } = await supabase
+            .from("app_340b9f1944_profiles")
+            .select("id, email")
+            .eq("email", email)
+            .maybeSingle();
 
-        if (listErr) {
-          return new Response(JSON.stringify({ 
-            error: `User already exists but could not look them up: ${listErr.message}. Try signing in with your existing credentials, then use the SQL elevation method instead.`
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        const existingUser = userList?.users?.find((u: any) => u.email === email);
-        if (!existingUser) {
-          return new Response(JSON.stringify({ 
-            error: "User appears to exist but could not be found. Please try a different email or use the SQL elevation method."
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        userId = existingUser.id;
-        isExisting = true;
-
-        // Update password
-        const { error: updateErr } = await supabase.auth.admin.updateUserById(userId, {
-          password: password,
-          email_confirm: true,
-        });
-        if (updateErr) {
-          console.error("Password update warning:", updateErr.message);
+          if (profileData) {
+            userId = profileData.id;
+            isExisting = true;
+          } else {
+            return new Response(JSON.stringify({ 
+              error: `User may already exist but cannot be found. Try signing in first at /auth, then contact support. Details: ${errMsg}`
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } else {
+          const existingUser = listResult.data?.users?.find((u: any) => u.email === email);
+          if (existingUser) {
+            userId = existingUser.id;
+            isExisting = true;
+            // Update their password
+            await supabase.auth.admin.updateUserById(userId, { password, email_confirm: true });
+          } else {
+            return new Response(JSON.stringify({ 
+              error: `Could not find existing user with email ${email}. Original error: ${errMsg}`
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
         }
       } else {
-        return new Response(JSON.stringify({ error: `Failed to create user: ${createError.message}` }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        // Not a duplicate error - try alternative: use signUp via Auth API directly
+        // Make a direct REST call to Supabase Auth
+        try {
+          const signUpResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+              "apikey": supabaseServiceKey,
+            },
+            body: JSON.stringify({
+              email,
+              password,
+              email_confirm: true,
+              user_metadata: { full_name: name || "Super Admin", role: "admin" },
+            }),
+          });
+
+          if (signUpResponse.ok) {
+            const signUpData = await signUpResponse.json();
+            userId = signUpData.id;
+          } else {
+            const signUpError = await signUpResponse.text();
+            return new Response(JSON.stringify({ 
+              error: `Failed to create user. SDK error: ${errMsg}. REST error: ${signUpError}`
+            }), {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } catch (fetchErr: any) {
+          return new Response(JSON.stringify({ 
+            error: `Failed to create user via both methods. SDK: ${errMsg}. Fetch: ${fetchErr.message}`
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
     } else {
-      userId = newUser.user.id;
+      userId = createResult.data.user.id;
     }
 
-    // Now handle the profile - check if it exists first
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Could not determine user ID after creation attempts" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Step 2: Handle profile
     const { data: existingProfile } = await supabase
       .from("app_340b9f1944_profiles")
       .select("id")
@@ -133,7 +179,6 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingProfile) {
-      // Update existing profile to admin
       const { error: updateError } = await supabase
         .from("app_340b9f1944_profiles")
         .update({
@@ -151,7 +196,6 @@ serve(async (req) => {
         });
       }
     } else {
-      // Insert new profile
       const { error: insertError } = await supabase
         .from("app_340b9f1944_profiles")
         .insert({
@@ -171,7 +215,7 @@ serve(async (req) => {
       }
     }
 
-    // Log the action (non-critical)
+    // Step 3: Audit log (non-critical)
     try {
       await supabase.from("app_340b9f1944_audit_logs").insert({
         actor_id: userId,
@@ -206,8 +250,8 @@ serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: `Unexpected server error: ${error.message || "Unknown error"}` }), {
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: `Server error: ${error?.message || JSON.stringify(error) || "Unknown"}` }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
