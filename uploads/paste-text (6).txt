@@ -1,0 +1,162 @@
+Build a new feature module called **Ebo Workflow** inside the Awo Portal’s Consultation Workspace.  
+This module must allow an Awo to determine, record, manage, and complete the Ebo required for the active consultation.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Ebo Workflow — Functional Requirements
+
+#### 1.1 Ebo Initialization
+- Ebo Workflow initializes automatically after Ire/Osogbo is confirmed.
+- Pre-populate recommended Ebo categories based on:
+  - outcome_type (Ire or Osogbo)
+  - outcome_subtype
+  - confirmed Odu (from Module 2A)
+- Recommendations must be editable by the Awo.
+
+#### 1.2 Ebo Categories
+Include the following selectable categories:
+- Ebo Riru (Appeasement)
+- Ebo Ìpẹ̀sè (Offering)
+- Ebo Ìbòrí (Head Rogation)
+- Ebo Ìtẹ̀gùn (Cleansing)
+- Ebo Ìsún (Protection)
+- Ebo Ìwẹ̀fà (Purification)
+- Ebo Ìdáná (Fire Ritual)
+- Ebo Ìrànwọ́ (Assistance)
+- Ebo Ìṣọ̀kan (Alignment)
+
+#### 1.3 Ebo Item Selection
+- Allow Awo to select specific ritual items required for the Ebo.
+- Items may include:
+  - Obi
+  - Orogbo
+  - Oti
+  - Omi Tutu
+  - Epo
+  - Oyin
+  - Omi Ero
+  - Omi Omi
+  - Candles
+  - Herbs
+  - Animal offerings (if applicable)
+- Items must be selectable from a structured list.
+
+#### 1.4 Ebo Instructions
+- Allow Awo to enter detailed ritual instructions.
+- Support:
+  - Free‑text notes
+  - Step-by-step instructions
+  - House-specific variations
+
+#### 1.5 Ebo Confirmation Workflow
+- Require explicit “Confirm Ebo” action.
+- Prevent accidental saves by requiring confirmation.
+- Store:
+  - ebo_category
+  - ebo_items
+  - instructions
+  - confirmed_by (Awo user ID)
+  - confirmed_at timestamp
+  - consultation_id
+
+#### 1.6 Ebo Status Tracking
+Statuses:
+- Pending
+- In Progress
+- Completed
+- Cancelled
+
+Awo must be able to update status.
+
+#### 1.7 Botanica Integration (Phase 1)
+- If items match Botanica inventory, show “Available in Botanica” tag.
+- Provide link to Botanica checkout (no purchase flow required here).
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Place Ebo Workflow panel under Ire/Osogbo panel.
+- Use a modal or drawer for selecting Ebo category and items.
+- Display confirmed Ebo in a styled card with:
+  - Category
+  - Items
+  - Instructions
+  - Status
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Ebo categories should have distinct icons.
+- Status should use color-coded badges.
+
+#### 2.3 UX Behavior
+- Disable “Confirm Ebo” until category and items are selected.
+- Show success toast when saved.
+- Show warning toast when updated.
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- POST /consultations/{id}/ebo
+- PUT /consultations/{id}/ebo
+- GET /consultations/{id}/ebo
+- PUT /consultations/{id}/ebo/status
+
+#### 3.2 Data Sources
+- ebo table
+- consultations table
+- botanica_items table (for availability tags)
+- audit fields
+
+#### 3.3 Access Control
+- Only Awo role can set or update Ebo.
+- Must be tied to an active consultation.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with Module 2A (Manual Odu Entry)
+- Ebo recommendations must refresh when Odu is updated.
+
+#### 4.2 Integration with Module 2B (Ire/Osogbo Workflow)
+- Ebo initialization depends on confirmed outcome.
+- Ebo category suggestions must reflect outcome_type and outcome_subtype.
+
+#### 4.3 Integration with Module 2D (Notes + Summary)
+- Ebo details must be available for summary generation.
+- Notes module must be able to reference Ebo status.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Ebo categories load correctly.
+- Item list loads correctly.
+- Confirmation workflow enforces required steps.
+- Audit fields populate correctly.
+
+#### 5.2 Integration Tests
+- Ebo attaches to consultation record.
+- Updating Ebo triggers re-confirmation.
+- Workspace refreshes dependent modules.
+
+#### 5.3 UI Tests
+- Modal/drawer opens and closes correctly.
+- Confirm button enables/disables correctly.
+- Responsive layout works on desktop/tablet/mobile.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Ebo Workflow module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated into Consultation Workspace.
+- Ready for Module 2D (Notes + Summary).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare it for integration with Module 2D.

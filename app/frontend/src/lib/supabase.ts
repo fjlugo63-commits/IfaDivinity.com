@@ -45,6 +45,8 @@ export const TABLES = {
   odu_reference: 'app_340b9f1944_odu_reference',
   consultation_odu: 'app_340b9f1944_consultation_odu',
   ire_osogbo: 'app_340b9f1944_ire_osogbo',
+  ebo: 'app_340b9f1944_ebo',
+  botanica_items: 'app_340b9f1944_botanica_items',
 } as const;
 
 // Product type matching actual DB schema
@@ -246,6 +248,50 @@ export interface IreOsogboSubtype {
   key: string;
   label: string;
   meaning: string;
+}
+
+// Ebo type
+export interface DBEbo {
+  id: string;
+  consultation_id: string;
+  ebo_category: string;
+  ebo_items: string[];
+  instructions: string | null;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  confirmed_by: string;
+  confirmed_at: string;
+  updated_by: string | null;
+  updated_at: string | null;
+  update_reason: string | null;
+  previous_category: string | null;
+  previous_items: string[] | null;
+  previous_instructions: string | null;
+  created_at: string;
+}
+
+// Ebo category definition
+export interface EboCategory {
+  key: string;
+  label: string;
+  meaning: string;
+  icon: string;
+}
+
+// Ebo item definition
+export interface EboItem {
+  key: string;
+  label: string;
+  meaning: string;
+  botanica_available?: boolean;
+  botanica_price?: number | null;
+}
+
+// Ebo recommendations
+export interface EboRecommendations {
+  categories: string[];
+  items: string[];
+  outcome_type: string;
+  outcome_subtype: string;
 }
 
 // Consultation Odu type

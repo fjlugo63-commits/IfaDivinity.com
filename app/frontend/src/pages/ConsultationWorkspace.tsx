@@ -56,9 +56,10 @@ import { Textarea } from '@/components/ui/textarea';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, DBOduReference, DBConsultationOdu, DBConsultation, DBIreOsogbo, IreOsogboSubtype } from '@/lib/supabase';
+import { supabase, DBOduReference, DBConsultationOdu, DBConsultation, DBIreOsogbo, DBEbo, IreOsogboSubtype } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useParams, useNavigate } from 'react-router-dom';
+import EboPanel from '@/components/consultation/EboPanel';
 
 // Helper to call the odu entry edge function
 async function callOduAPI(action: string, method: string = 'GET', body?: Record<string, unknown>, params?: Record<string, string>) {
@@ -1088,6 +1089,8 @@ export default function ConsultationWorkspace() {
   const [consultation, setConsultation] = useState<DBConsultation | null>(null);
   const [consultationOdu, setConsultationOdu] = useState<DBConsultationOdu | null>(null);
   const [ireOsogboOutcome, setIreOsogboOutcome] = useState<DBIreOsogbo | null>(null);
+  const [eboData, setEboData] = useState<DBEbo | null>(null);
+  const [loadingEbo, setLoadingEbo] = useState(true);
   const [loadingConsultation, setLoadingConsultation] = useState(true);
   const [loadingOdu, setLoadingOdu] = useState(true);
   const [loadingOutcome, setLoadingOutcome] = useState(true);
@@ -1158,13 +1161,46 @@ export default function ConsultationWorkspace() {
     }
   }, [consultationId]);
 
+  // Fetch existing Ebo
+  const fetchEbo = useCallback(async () => {
+    if (!consultationId) return;
+    setLoadingEbo(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const searchParams = new URLSearchParams({ action: 'consultation-ebo', consultation_id: consultationId });
+      const url = `${supabaseUrl}/functions/v1/app_ebo_workflow?${searchParams.toString()}`;
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEboData(data.ebo || null);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load Ebo';
+      console.error(message);
+    } finally {
+      setLoadingEbo(false);
+    }
+  }, [consultationId]);
+
   useEffect(() => {
     if (user && (userRole === 'seller' || userRole === 'admin')) {
       fetchConsultation();
       fetchConsultationOdu();
       fetchIreOsogboOutcome();
+      fetchEbo();
     }
-  }, [user, userRole, fetchConsultation, fetchConsultationOdu, fetchIreOsogboOutcome]);
+  }, [user, userRole, fetchConsultation, fetchConsultationOdu, fetchIreOsogboOutcome, fetchEbo]);
 
   // Handle Odu selection from selector
   const handleOduSelected = (odu: DBOduReference) => {
@@ -1375,43 +1411,37 @@ export default function ConsultationWorkspace() {
               />
             )}
 
-            {/* Ebo Workflow Placeholder - Integration Ready */}
-            <Card className="border-dashed">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-muted-foreground">
-                  Ebo Workflow
-                </CardTitle>
-                <CardDescription>
-                  Module 2C — Prescriptions and remedies
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-24 flex items-center justify-center bg-muted/20 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    {ireOsogboOutcome
-                      ? `✓ ${ireOsogboOutcome.outcome_type === 'ire' ? 'Ire' : 'Osogbo'} confirmed — Ready for Ebo prescription`
-                      : consultationOdu
-                      ? '⏳ Awaiting Ire/Osogbo determination...'
-                      : '⏳ Awaiting Odu confirmation...'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Ebo Workflow - Active Module */}
+            {loadingEbo ? (
+              <Skeleton className="h-48 w-full" />
+            ) : (
+              <EboPanel
+                consultationId={consultationId}
+                outcomeConfirmed={!!ireOsogboOutcome}
+                outcome={ireOsogboOutcome}
+                ebo={eboData}
+                onEboChange={(newEbo) => setEboData(newEbo)}
+              />
+            )}
 
-            {/* Notes/Summary Placeholder */}
+            {/* Notes/Summary Placeholder - Integration Ready for Module 2D */}
             <Card className="border-dashed">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg text-muted-foreground">
                   Session Notes & Summary
                 </CardTitle>
                 <CardDescription>
-                  Consultation notes and summary
+                  Module 2D — Consultation notes and summary
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-24 flex items-center justify-center bg-muted/20 rounded-lg">
                   <p className="text-sm text-muted-foreground">
-                    Notes module — Coming soon
+                    {eboData
+                      ? `✓ Ebo prescribed (${eboData.status}) — Ready for notes & summary`
+                      : ireOsogboOutcome
+                      ? '⏳ Awaiting Ebo prescription...'
+                      : '⏳ Awaiting earlier steps...'}
                   </p>
                 </div>
               </CardContent>
