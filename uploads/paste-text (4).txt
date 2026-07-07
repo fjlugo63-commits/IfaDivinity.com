@@ -1,0 +1,128 @@
+Build a new feature module called **Manual Odu Entry** inside the Awo Portal’s Consultation Workspace.  
+This module must allow an Awo to manually record the Odu revealed during divination.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Manual Odu Entry — Functional Requirements
+
+#### 1.1 Odu Selection
+- Provide a structured selector for all 256 Odu.
+- Display each Odu with:
+  - Primary name
+  - Aliases (if any)
+  - Binary pattern (if stored)
+  - Category (major/minor if applicable)
+- Allow search by name or alias.
+
+#### 1.2 Odu Confirmation Workflow
+- Awo must explicitly confirm the selected Odu before saving.
+- Include a “Confirm Odu” action.
+- Prevent accidental saves by requiring confirmation.
+
+#### 1.3 Attach Odu to Consultation Record
+- When confirmed, save the Odu to the active consultation record.
+- Store:
+  - odu_id
+  - confirmed_by (Awo user ID)
+  - confirmed_at timestamp
+  - consultation_id
+
+#### 1.4 Edit / Update Odu
+- Allow Awo to update the Odu if needed.
+- Require re-confirmation for any change.
+- Log updates in audit fields.
+
+#### 1.5 Display Selected Odu
+- Show the selected Odu prominently in the Consultation Workspace.
+- Include:
+  - Odu name
+  - Aliases
+  - Binary pattern
+  - Any house-specific notes (future module)
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Place the Manual Odu Entry panel on the left side of the Consultation Workspace.
+- Use a modal or drawer for Odu selection.
+- Display the confirmed Odu in a styled card.
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Ensure visual consistency with the Awo Dashboard.
+
+#### 2.3 UX Behavior
+- Disable “Confirm Odu” until an Odu is selected.
+- Show a success toast when Odu is saved.
+- Show a warning toast when Odu is updated.
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- GET /odu-reference
+- POST /consultations/{id}/odu
+- PUT /consultations/{id}/odu
+
+#### 3.2 Data Sources
+- odu_reference table
+- consultations table
+- consultation_odu table (if separate)
+- audit fields
+
+#### 3.3 Access Control
+- Only Awo role can set or update Odu.
+- Must be tied to an active consultation.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Consultation Workspace
+- Manual Odu Entry must integrate into the Consultation Workspace module.
+- After Odu confirmation, trigger refresh of:
+  - Ire/Osogbo workflow
+  - Ebo workflow
+  - Notes/Summary panel
+
+#### 4.2 Future Smart Opele Integration
+Prepare hooks for:
+- Smart Opele cast data
+- Candidate Odu suggestions
+- Awo confirmation override
+
+(No implementation required now.)
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Odu selector loads all 256 Odu.
+- Search returns correct Odu.
+- Confirmation workflow enforces required steps.
+- Audit fields populate correctly.
+
+#### 5.2 Integration Tests
+- Odu attaches to consultation record.
+- Updating Odu triggers re-confirmation.
+- Workspace refreshes dependent modules.
+
+#### 5.3 UI Tests
+- Modal/drawer opens and closes correctly.
+- Confirm button enables/disables correctly.
+- Responsive layout works on desktop/tablet/mobile.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Manual Odu Entry module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated into Consultation Workspace.
+- Ready for Module 2B (Ire/Osogbo Workflow).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare it for integration with Module 2B.

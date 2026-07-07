@@ -42,6 +42,8 @@ export const TABLES = {
   house_practitioners: 'app_340b9f1944_house_practitioners',
   subscription_entitlements: 'app_340b9f1944_subscription_entitlements',
   house_announcements: 'app_340b9f1944_house_announcements',
+  odu_reference: 'app_340b9f1944_odu_reference',
+  consultation_odu: 'app_340b9f1944_consultation_odu',
 } as const;
 
 // Product type matching actual DB schema
@@ -208,4 +210,31 @@ export interface DBAnnouncement {
   title: string;
   content: string;
   created_at: string;
+}
+
+// Odu Reference type
+export interface DBOduReference {
+  id: number;
+  name: string;
+  aliases: string[];
+  binary_pattern: string;
+  category: string;
+  position: number;
+  description: string | null;
+  created_at: string;
+}
+
+// Consultation Odu type
+export interface DBConsultationOdu {
+  id: string;
+  consultation_id: string;
+  odu_id: number;
+  confirmed_by: string;
+  confirmed_at: string;
+  updated_by: string | null;
+  updated_at: string | null;
+  update_reason: string | null;
+  previous_odu_id: number | null;
+  created_at: string;
+  odu?: DBOduReference;
 }
