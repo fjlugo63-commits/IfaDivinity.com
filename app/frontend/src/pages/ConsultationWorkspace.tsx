@@ -56,10 +56,11 @@ import { Textarea } from '@/components/ui/textarea';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, DBOduReference, DBConsultationOdu, DBConsultation, DBIreOsogbo, DBEbo, IreOsogboSubtype } from '@/lib/supabase';
+import { supabase, DBOduReference, DBConsultationOdu, DBConsultation, DBIreOsogbo, DBEbo, DBConsultationNote, DBConsultationSummary, IreOsogboSubtype } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useParams, useNavigate } from 'react-router-dom';
 import EboPanel from '@/components/consultation/EboPanel';
+import NotesSummaryPanel from '@/components/consultation/NotesSummaryPanel';
 
 // Helper to call the odu entry edge function
 async function callOduAPI(action: string, method: string = 'GET', body?: Record<string, unknown>, params?: Record<string, string>) {
@@ -1091,6 +1092,9 @@ export default function ConsultationWorkspace() {
   const [ireOsogboOutcome, setIreOsogboOutcome] = useState<DBIreOsogbo | null>(null);
   const [eboData, setEboData] = useState<DBEbo | null>(null);
   const [loadingEbo, setLoadingEbo] = useState(true);
+  const [noteData, setNoteData] = useState<DBConsultationNote | null>(null);
+  const [summaryData, setSummaryData] = useState<DBConsultationSummary | null>(null);
+  const [loadingNotes, setLoadingNotes] = useState(true);
   const [loadingConsultation, setLoadingConsultation] = useState(true);
   const [loadingOdu, setLoadingOdu] = useState(true);
   const [loadingOutcome, setLoadingOutcome] = useState(true);
@@ -1193,14 +1197,64 @@ export default function ConsultationWorkspace() {
     }
   }, [consultationId]);
 
+  // Fetch existing Notes and Summary
+  const fetchNotesSummary = useCallback(async () => {
+    if (!consultationId) return;
+    setLoadingNotes(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      // Fetch notes
+      const notesParams = new URLSearchParams({ action: 'consultation-notes', consultation_id: consultationId });
+      const notesUrl = `${supabaseUrl}/functions/v1/app_notes_summary?${notesParams.toString()}`;
+      const notesRes = await fetch(notesUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+      });
+      const notesData = await notesRes.json();
+      if (notesRes.ok) {
+        setNoteData(notesData.note || null);
+      }
+
+      // Fetch summary
+      const summaryParams = new URLSearchParams({ action: 'consultation-summary', consultation_id: consultationId });
+      const summaryUrl = `${supabaseUrl}/functions/v1/app_notes_summary?${summaryParams.toString()}`;
+      const summaryRes = await fetch(summaryUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+      });
+      const summaryResult = await summaryRes.json();
+      if (summaryRes.ok) {
+        setSummaryData(summaryResult.summary || null);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load notes/summary';
+      console.error(message);
+    } finally {
+      setLoadingNotes(false);
+    }
+  }, [consultationId]);
+
   useEffect(() => {
     if (user && (userRole === 'seller' || userRole === 'admin')) {
       fetchConsultation();
       fetchConsultationOdu();
       fetchIreOsogboOutcome();
       fetchEbo();
+      fetchNotesSummary();
     }
-  }, [user, userRole, fetchConsultation, fetchConsultationOdu, fetchIreOsogboOutcome, fetchEbo]);
+  }, [user, userRole, fetchConsultation, fetchConsultationOdu, fetchIreOsogboOutcome, fetchEbo, fetchNotesSummary]);
 
   // Handle Odu selection from selector
   const handleOduSelected = (odu: DBOduReference) => {
@@ -1424,28 +1478,22 @@ export default function ConsultationWorkspace() {
               />
             )}
 
-            {/* Notes/Summary Placeholder - Integration Ready for Module 2D */}
-            <Card className="border-dashed">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-muted-foreground">
-                  Session Notes & Summary
-                </CardTitle>
-                <CardDescription>
-                  Module 2D — Consultation notes and summary
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-24 flex items-center justify-center bg-muted/20 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    {eboData
-                      ? `✓ Ebo prescribed (${eboData.status}) — Ready for notes & summary`
-                      : ireOsogboOutcome
-                      ? '⏳ Awaiting Ebo prescription...'
-                      : '⏳ Awaiting earlier steps...'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Notes & Summary - Module 2D */}
+            {loadingNotes ? (
+              <Skeleton className="h-48 w-full" />
+            ) : (
+              <NotesSummaryPanel
+                consultationId={consultationId}
+                outcomeConfirmed={!!ireOsogboOutcome}
+                eboConfirmed={!!eboData?.confirmed_at}
+                outcome={ireOsogboOutcome}
+                ebo={eboData}
+                note={noteData}
+                summary={summaryData}
+                onNoteChange={(newNote) => setNoteData(newNote)}
+                onSummaryChange={(newSummary) => setSummaryData(newSummary)}
+              />
+            )}
           </div>
         </div>
       </main>

@@ -47,6 +47,8 @@ export const TABLES = {
   ire_osogbo: 'app_340b9f1944_ire_osogbo',
   ebo: 'app_340b9f1944_ebo',
   botanica_items: 'app_340b9f1944_botanica_items',
+  consultation_notes: 'app_340b9f1944_consultation_notes',
+  consultation_summary: 'app_340b9f1944_consultation_summary',
 } as const;
 
 // Product type matching actual DB schema
@@ -292,6 +294,36 @@ export interface EboRecommendations {
   items: string[];
   outcome_type: string;
   outcome_subtype: string;
+}
+
+// Consultation Notes type
+export interface DBConsultationNote {
+  id: string;
+  consultation_id: string;
+  content: string;
+  formatted_content: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Consultation Summary type
+export interface DBConsultationSummary {
+  id: string;
+  consultation_id: string;
+  summary_text: string;
+  client_summary: string | null;
+  generated_from: {
+    odu: { id: string; name: string; aliases: string[] } | null;
+    outcome: { type: string; subtype: string; category: string } | null;
+    ebo: { category: string; items: string[]; instructions: string | null } | null;
+    notes: string | null;
+  };
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  updated_by: string | null;
+  updated_at: string | null;
+  created_at: string;
 }
 
 // Consultation Odu type

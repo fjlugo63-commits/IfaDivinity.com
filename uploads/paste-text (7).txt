@@ -1,0 +1,133 @@
+Build a new feature module called **Notes + Summary** inside the Awo Portal’s Consultation Workspace.  
+This module must allow an Awo to record consultation notes and generate a structured summary based on Odu, Ire/Osogbo, and Ebo.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Notes + Summary — Functional Requirements
+
+#### 1.1 Notes Panel
+- Provide a free‑text notes editor for the Awo.
+- Support:
+  - Rich text formatting (bold, italic, bullet points)
+  - Timestamped entries
+  - Auto-save every 10 seconds
+- Allow editing and deletion of notes by the Awo.
+
+#### 1.2 Structured Summary Generator
+- Generate a structured summary using data from:
+  - Confirmed Odu (Module 2A)
+  - Confirmed Ire/Osogbo outcome (Module 2B)
+  - Confirmed Ebo (Module 2C)
+- Summary must include:
+  - Odu name + aliases
+  - Outcome category + subtype
+  - Ebo category + items
+  - Awo notes (optional)
+- Summary must be editable before final save.
+
+#### 1.3 Summary Confirmation Workflow
+- Require explicit “Confirm Summary” action.
+- Store:
+  - summary_text
+  - generated_from (Odu, outcome, Ebo)
+  - confirmed_by (Awo user ID)
+  - confirmed_at timestamp
+  - consultation_id
+
+#### 1.4 Client-Friendly Summary Version
+- Provide a simplified version of the summary for client delivery.
+- Remove internal notes and ritual details not intended for clients.
+- Allow Awo to preview client version.
+
+#### 1.5 Export Hooks (Phase 1)
+- Provide a “Copy Summary” button.
+- Provide a “Send to Client Portal” button (integration stub only).
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Place Notes panel on the right side of the Consultation Workspace.
+- Place Summary panel below Notes.
+- Use tabs or collapsible sections for:
+  - Notes
+  - Summary
+  - Client Version
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Notes editor must match global text editor styling.
+- Summary card must visually match Odu, Outcome, and Ebo cards.
+
+#### 2.3 UX Behavior
+- Auto-save notes silently.
+- Show toast when summary is generated.
+- Show warning toast when summary is updated.
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- POST /consultations/{id}/notes
+- PUT /consultations/{id}/notes
+- GET /consultations/{id}/notes
+- POST /consultations/{id}/summary
+- PUT /consultations/{id}/summary
+- GET /consultations/{id}/summary
+
+#### 3.2 Data Sources
+- consultation_notes table
+- consultation_summary table
+- consultations table
+- audit fields
+
+#### 3.3 Access Control
+- Only Awo role can create or update notes and summary.
+- Summary must be tied to an active consultation.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with Module 2A (Manual Odu Entry)
+- Summary generator must pull confirmed Odu details.
+
+#### 4.2 Integration with Module 2B (Ire/Osogbo Workflow)
+- Summary generator must include outcome_type and outcome_subtype.
+
+#### 4.3 Integration with Module 2C (Ebo Workflow)
+- Summary generator must include Ebo category, items, and instructions.
+
+#### 4.4 Integration with Module 2E (Consultation History)
+- Notes and summary must be accessible in the consultation history view.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Notes save and update correctly.
+- Summary generator produces correct structured output.
+- Audit fields populate correctly.
+
+#### 5.2 Integration Tests
+- Summary pulls correct data from Odu, Outcome, and Ebo modules.
+- Updating any upstream module triggers summary refresh.
+
+#### 5.3 UI Tests
+- Notes editor behaves correctly (typing, formatting, auto-save).
+- Summary panel renders correctly.
+- Client version displays simplified text.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Notes + Summary module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated into Consultation Workspace.
+- Ready for Module 2E (Consultation History).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare it for integration with Module 2E.
