@@ -157,54 +157,71 @@ const MOCK_PAYMENTS: ClientPayment[] = [
 ];
 
 // ============ API HELPER ============
-async function callClientPaymentsAPI(action: string, method: string = 'GET', body?: Record<string, unknown>): Promise<Record<string, unknown>> {
-  if (!isSupabaseConfigured) {
-    throw new Error('Supabase not configured');
+// Fetches payments directly from Supabase orders table for the current user
+async function fetchClientPaymentsFromDB(userId: string): Promise<ClientPayment[]> {
+  if (!isSupabaseConfigured || !userId) {
+    return [];
   }
 
-  let session = null;
   try {
-    const { data } = await supabase.auth.getSession();
-    session = data?.session;
-  } catch {
-    throw new Error('Failed to get auth session');
+    // Query orders table for this user's payments
+    const { data: orders, error } = await supabase
+      .from('app_340b9f1944_orders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return [];
+    }
+
+    if (!orders || orders.length === 0) {
+      return [];
+    }
+
+    // Map orders to ClientPayment format
+    return orders.map((order: Record<string, unknown>) => ({
+      id: (order.id as string) || crypto.randomUUID(),
+      type: ((order.type as string) || 'consultation') as 'consultation' | 'ebo' | 'botanica',
+      amount: (order.total_amount as number) || (order.amount as number) || 0,
+      currency: (order.currency as string) || 'USD',
+      status: mapOrderStatus((order.status as string) || 'pending'),
+      awo_name: (order.seller_name as string) || (order.awo_name as string) || 'Practitioner',
+      consultation_date: (order.consultation_date as string) || null,
+      consultation_id: (order.consultation_id as string) || null,
+      ebo_id: (order.ebo_id as string) || null,
+      order_id: (order.id as string) || null,
+      stripe_payment_link: (order.stripe_payment_link as string) || (order.payment_link as string) || null,
+      stripe_reference: (order.stripe_payment_intent as string) || (order.stripe_reference as string) || null,
+      receipt_url: (order.receipt_url as string) || null,
+      paid_at: (order.paid_at as string) || null,
+      refunded_at: (order.refunded_at as string) || null,
+      refund_amount: (order.refund_amount as number) || null,
+      description: (order.description as string) || (order.item_name as string) || `Order #${(order.id as string)?.slice(0, 8) || ''}`,
+      created_at: (order.created_at as string) || new Date().toISOString(),
+    }));
+  } catch (err) {
+    console.error('Failed to query payments from DB:', err);
+    return [];
   }
+}
 
-  if (!session) throw new Error('Not authenticated');
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const queryParams = new URLSearchParams({ action });
-  const url = `${supabaseUrl}/functions/v1/app_awo_payments?${queryParams}`;
-
-  const options: RequestInit = {
-    method,
-    headers: {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-    },
-  };
-
-  if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-    options.body = JSON.stringify(body);
+function mapOrderStatus(status: string): 'unpaid' | 'pending' | 'paid' | 'refunded' {
+  switch (status.toLowerCase()) {
+    case 'paid':
+    case 'completed':
+    case 'fulfilled':
+      return 'paid';
+    case 'pending':
+    case 'processing':
+      return 'pending';
+    case 'refunded':
+    case 'cancelled':
+      return 'refunded';
+    default:
+      return 'unpaid';
   }
-
-  let res: Response;
-  try {
-    res = await fetch(url, options);
-  } catch {
-    throw new Error('Network error - could not reach payment service');
-  }
-
-  let data: Record<string, unknown>;
-  try {
-    data = await res.json();
-  } catch {
-    throw new Error('Invalid response from payment service');
-  }
-
-  if (!res.ok) throw new Error((data.error as string) || 'API request failed');
-  return data;
 }
 
 // ============ STATUS BADGE ============
@@ -607,31 +624,50 @@ export default function ClientPayments() {
     };
   }, []);
 
-  // Auth guard
+  // Soft auth guard - redirect only after a delay to allow session restoration
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate('/client/auth', { replace: true });
+      // Give Supabase a moment to restore session from localStorage before redirecting
+      const timeout = setTimeout(() => {
+        if (!isMountedRef.current) return;
+        // Re-check session directly as a final verification
+        supabase.auth.getSession().then(({ data }) => {
+          if (!data?.session && isMountedRef.current) {
+            // Truly no session - show page with mock data instead of redirecting
+            // User can still browse the page in demo mode
+            setPayments(MOCK_PAYMENTS);
+            setLoading(false);
+          }
+        }).catch(() => {
+          // On error, just show mock data
+          if (isMountedRef.current) {
+            setPayments(MOCK_PAYMENTS);
+            setLoading(false);
+          }
+        });
+      }, 500);
+      return () => clearTimeout(timeout);
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading]);
 
   const fetchPayments = useCallback(async () => {
     if (!isMountedRef.current) return;
     setLoading(true);
 
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !user) {
+      // No Supabase or no user - show mock/demo data
       setPayments(MOCK_PAYMENTS);
       setLoading(false);
       return;
     }
 
     try {
-      const data = await callClientPaymentsAPI('get-client-payments');
+      const dbPayments = await fetchClientPaymentsFromDB(user.id);
       if (isMountedRef.current) {
-        const fetchedPayments = data.payments;
-        if (Array.isArray(fetchedPayments)) {
-          setPayments(fetchedPayments as ClientPayment[]);
+        if (dbPayments.length > 0) {
+          setPayments(dbPayments);
         } else {
-          // API returned but no payments array - use mock as fallback
+          // No payments found in DB - show mock data as demo
           setPayments(MOCK_PAYMENTS);
         }
       }
@@ -646,16 +682,17 @@ export default function ClientPayments() {
         setLoading(false);
       }
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       fetchPayments();
-    } else if (!authLoading) {
-      // Not loading and no user - just show empty state without crashing
+    } else if (!authLoading && !isSupabaseConfigured) {
+      // No Supabase configured at all - show mock data immediately
+      setPayments(MOCK_PAYMENTS);
       setLoading(false);
-      setPayments([]);
     }
+    // If authLoading or waiting for session restore, the soft auth guard handles it
   }, [user, authLoading, fetchPayments]);
 
   // Polling for payment status - simplified and safe
@@ -696,20 +733,30 @@ export default function ClientPayments() {
       }
 
       try {
-        const data = await callClientPaymentsAPI('get-payment-status', 'GET');
-        if (cancelled || !isMountedRef.current) return;
+        if (user) {
+          // Query the specific payment from DB to check status
+          const { data: orderData, error } = await supabase
+            .from('app_340b9f1944_orders')
+            .select('*')
+            .eq('id', pollingPaymentId)
+            .eq('user_id', user.id)
+            .single();
 
-        const updatedPayment = data.payment as ClientPayment | undefined;
-        if (updatedPayment && (updatedPayment.status === 'paid' || updatedPayment.status === 'refunded')) {
-          setPayments(prev => prev.map(p => p.id === pollingPaymentId ? { ...p, ...updatedPayment } : p));
-          if (updatedPayment.status === 'paid') {
-            toast.success('Payment completed!', { description: 'Your payment has been processed successfully.' });
-            if (updatedPayment.consultation_id) {
-              navigate(`/consultation/${updatedPayment.consultation_id}`);
+          if (!error && orderData && !cancelled && isMountedRef.current) {
+            const orderStatus = mapOrderStatus((orderData.status as string) || 'pending');
+            if (orderStatus === 'paid' || orderStatus === 'refunded') {
+              setPayments(prev => prev.map(p =>
+                p.id === pollingPaymentId
+                  ? { ...p, status: orderStatus, paid_at: (orderData.paid_at as string) || new Date().toISOString() }
+                  : p
+              ));
+              if (orderStatus === 'paid') {
+                toast.success('Payment completed!', { description: 'Your payment has been processed successfully.' });
+              }
+              setPollingPaymentId(null);
+              return;
             }
           }
-          setPollingPaymentId(null);
-          return;
         }
       } catch (err) {
         console.error('Polling error:', err);
@@ -732,7 +779,7 @@ export default function ClientPayments() {
         pollingRef.current = null;
       }
     };
-  }, [pollingPaymentId, navigate]);
+  }, [pollingPaymentId, navigate, user]);
 
   function handleOpenPaymentLink(payment: ClientPayment) {
     if (!payment.stripe_payment_link) {
