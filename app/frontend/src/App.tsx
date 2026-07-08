@@ -21,6 +21,13 @@ const Orders = lazy(() => import('./pages/Orders'));
 const Bookings = lazy(() => import('./pages/Bookings'));
 const SellerDashboard = lazy(() => import('./pages/SellerDashboard'));
 const Admin = lazy(() => import('./pages/Admin'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminAwos = lazy(() => import('./pages/AdminAwos'));
+const AdminClients = lazy(() => import('./pages/AdminClients'));
+const AdminConsultations = lazy(() => import('./pages/AdminConsultations'));
+const AdminPayments = lazy(() => import('./pages/AdminPayments'));
+const AdminHousesBotanica = lazy(() => import('./pages/AdminHousesBotanica'));
+const AdminSettings = lazy(() => import('./pages/AdminSettings'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const AwoDashboard = lazy(() => import('./pages/AwoDashboard'));
 const ConsultationWorkspace = lazy(() => import('./pages/ConsultationWorkspace'));
@@ -42,6 +49,7 @@ const AwoMessages = lazy(() => import('./pages/AwoMessages'));
 
 // Client Layout (eager load for wrapping)
 import { ClientLayout } from './components/ClientLayout';
+import { AdminLayout } from './components/AdminLayout';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,7 +105,20 @@ const AppRoutes = () => (
         <Route index element={<Navigate to="/client/dashboard" replace />} />
       </Route>
       <Route path="/awo/messages" element={<AwoMessages />} />
-      <Route path="/admin" element={<Admin />} />
+      {/* Admin Portal - Nested routes with shared layout */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="awos" element={<AdminAwos />} />
+        <Route path="clients" element={<AdminClients />} />
+        <Route path="consultations" element={<AdminConsultations />} />
+        <Route path="payments" element={<AdminPayments />} />
+        <Route path="houses" element={<AdminHousesBotanica />} />
+        <Route path="botanica" element={<AdminHousesBotanica />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+      </Route>
+      {/* Legacy admin route */}
+      <Route path="/admin-legacy" element={<Admin />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/error" element={<AuthError />} />
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />
