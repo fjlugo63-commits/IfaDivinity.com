@@ -10,6 +10,8 @@ interface AuthContextType {
   isConfigured: boolean;
   signUp: (email: string, password: string, name: string, role?: UserRole) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
+  registerClient: (data: { name: string; email: string; phone?: string; timezone?: string }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -106,6 +108,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error as Error | null };
   }
 
+  async function signInWithMagicLink(email: string) {
+    if (!isSupabaseConfigured) {
+      return { error: new Error('Supabase is not configured. Please connect your Supabase project.') };
+    }
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/client/auth/callback`,
+      },
+    });
+    return { error: error as Error | null };
+  }
+
+  async function registerClient(data: { name: string; email: string; phone?: string; timezone?: string }) {
+    if (!isSupabaseConfigured) {
+      return { error: new Error('Supabase is not configured. Please connect your Supabase project.') };
+    }
+    // First send magic link for auth
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: data.email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/client/auth/callback`,
+        data: { full_name: data.name, role: 'client' },
+      },
+    });
+    if (otpError) return { error: otpError as Error };
+
+    // Create client record (will be linked after auth confirmation)
+    const { error: clientError } = await supabase.from(TABLES.clients).insert({
+      name: data.name,
+      email: data.email,
+      phone: data.phone || null,
+      timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      status: 'active',
+      awo_id: '00000000-0000-0000-0000-000000000000', // placeholder, will be updated
+    });
+    if (clientError && !clientError.message.includes('duplicate')) {
+      return { error: clientError as unknown as Error };
+    }
+    return { error: null };
+  }
+
   async function signOut() {
     if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
@@ -113,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, user, userRole, loading, isConfigured: isSupabaseConfigured, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, user, userRole, loading, isConfigured: isSupabaseConfigured, signUp, signIn, signInWithMagicLink, registerClient, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,0 +1,150 @@
+Build a new feature module called **Client Portal – CP‑1: Authentication + Dashboard**.  
+This module must implement client login, session handling, role-based access, and the main Client Dashboard.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Client Authentication
+
+#### 1.1 Magic Link Login
+- Implement magic link authentication for clients.
+- Use email-based login only (no password).
+- Store client sessions securely.
+- Redirect authenticated clients to the Client Dashboard.
+
+#### 1.2 Role-Based Access
+- Enforce `role = client`.
+- Prevent access to Awo Portal, House Portal, Admin Portal.
+- Redirect unauthorized users to login.
+
+#### 1.3 Session Handling
+- Persist client session across page reloads.
+- Auto-logout on token expiration.
+- Provide “Logout” button.
+
+#### 1.4 Registration Flow
+- Allow new clients to register:
+  - name
+  - email
+  - phone
+  - timezone
+- Validate email uniqueness.
+- Create record in `clients` table.
+
+------------------------------------------------------------
+### 2. Client Dashboard
+
+#### 2.1 Dashboard Overview
+Display:
+- Next upcoming consultation (if any)
+- Pending booking requests
+- Pending payments
+- Recent consultations
+- Ebo payment status (if applicable)
+
+#### 2.2 Quick Actions
+Buttons:
+- “Book Consultation”
+- “View Consultation History”
+- “View Payments”
+- “Update Profile”
+- “Messages” (Phase 1 stub)
+
+#### 2.3 Dashboard Cards
+Implement cards for:
+- Upcoming Consultation
+- Pending Payments
+- Recent Consultations
+- Booking Requests
+
+Each card must:
+- Be clickable
+- Navigate to the correct Client Portal module
+
+------------------------------------------------------------
+### 3. UI Requirements
+
+#### 3.1 Layout
+Client Dashboard must include:
+- Header with client name + logout
+- Summary cards
+- Quick action buttons
+- Recent activity list
+
+#### 3.2 Styling
+- Use IfaDivinity design system tokens.
+- Client Portal must have distinct styling from Awo Portal:
+  - Softer palette
+  - Rounded cards
+  - Client-friendly typography
+
+#### 3.3 UX Behavior
+- Smooth transitions between pages.
+- Toast notifications for:
+  - Login success
+  - Registration success
+  - Session expiration
+
+------------------------------------------------------------
+### 4. Backend Requirements
+
+#### 4.1 API Endpoints
+Create or extend:
+- POST /client/auth/login
+- POST /client/auth/register
+- GET /client/dashboard
+- GET /client/session
+
+#### 4.2 Data Sources
+- clients table
+- consultations table
+- booking_requests table
+- payments table
+
+#### 4.3 Access Control
+- Only client role can access Client Portal.
+- Client can only view their own:
+  - consultations
+  - payments
+  - booking requests
+
+------------------------------------------------------------
+### 5. Integration Requirements
+
+#### 5.1 Integration with Scheduling
+- Dashboard must show booking requests created via Scheduling API.
+
+#### 5.2 Integration with Payments
+- Dashboard must show pending payments from Payments module.
+
+#### 5.3 Integration with Consultation History
+- Dashboard must link into Consultation History (CP‑4).
+
+------------------------------------------------------------
+### 6. Testing Requirements (Complete Through Test)
+
+#### 6.1 Unit Tests
+- Magic link login works.
+- Registration creates client record.
+- Dashboard loads correct data.
+
+#### 6.2 Integration Tests
+- Dashboard pulls booking + payment + consultation data.
+- Role-based access prevents unauthorized access.
+
+#### 6.3 UI Tests
+- Dashboard renders correctly.
+- Responsive layout works on desktop/tablet/mobile.
+
+------------------------------------------------------------
+### 7. Deliverables
+
+- Fully implemented Client Authentication system.
+- Fully implemented Client Dashboard.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Ready for CP‑2 (Booking Flow).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare for CP‑2 (Booking Flow).
