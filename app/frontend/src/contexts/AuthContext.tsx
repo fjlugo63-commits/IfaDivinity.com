@@ -54,17 +54,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function fetchUserRole(userId: string) {
+    // Add a timeout to prevent hanging if the profiles table doesn't exist or RLS blocks
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+    
     try {
-      const { data, error } = await supabase
+      const queryPromise = supabase
         .from(TABLES.profiles)
         .select('role')
         .eq('id', userId)
         .single();
 
-      if (error || !data) {
+      const result = await Promise.race([queryPromise, timeoutPromise]);
+      
+      if (result === null) {
+        // Timeout - assume buyer role
         setUserRole('buyer');
       } else {
-        setUserRole(data.role as UserRole);
+        const { data, error } = result;
+        if (error || !data) {
+          setUserRole('buyer');
+        } else {
+          setUserRole(data.role as UserRole);
+        }
       }
     } catch {
       setUserRole('buyer');

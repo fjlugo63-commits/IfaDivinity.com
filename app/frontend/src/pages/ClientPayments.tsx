@@ -624,31 +624,19 @@ export default function ClientPayments() {
     };
   }, []);
 
-  // Soft auth guard - redirect only after a delay to allow session restoration
+  // Safety timeout - if auth takes too long, just show the page with mock data
   useEffect(() => {
-    if (!authLoading && !user) {
-      // Give Supabase a moment to restore session from localStorage before redirecting
-      const timeout = setTimeout(() => {
-        if (!isMountedRef.current) return;
-        // Re-check session directly as a final verification
-        supabase.auth.getSession().then(({ data }) => {
-          if (!data?.session && isMountedRef.current) {
-            // Truly no session - show page with mock data instead of redirecting
-            // User can still browse the page in demo mode
-            setPayments(MOCK_PAYMENTS);
-            setLoading(false);
-          }
-        }).catch(() => {
-          // On error, just show mock data
-          if (isMountedRef.current) {
-            setPayments(MOCK_PAYMENTS);
-            setLoading(false);
-          }
-        });
-      }, 500);
-      return () => clearTimeout(timeout);
+    if (authLoading) {
+      const safetyTimeout = setTimeout(() => {
+        if (isMountedRef.current && loading) {
+          // Auth is taking too long - show page with mock data
+          setPayments(MOCK_PAYMENTS);
+          setLoading(false);
+        }
+      }, 2000);
+      return () => clearTimeout(safetyTimeout);
     }
-  }, [user, authLoading]);
+  }, [authLoading, loading]);
 
   const fetchPayments = useCallback(async () => {
     if (!isMountedRef.current) return;
@@ -687,12 +675,11 @@ export default function ClientPayments() {
   useEffect(() => {
     if (user) {
       fetchPayments();
-    } else if (!authLoading && !isSupabaseConfigured) {
-      // No Supabase configured at all - show mock data immediately
+    } else if (!authLoading) {
+      // Auth finished but no user - show mock data (don't redirect)
       setPayments(MOCK_PAYMENTS);
       setLoading(false);
     }
-    // If authLoading or waiting for session restore, the soft auth guard handles it
   }, [user, authLoading, fetchPayments]);
 
   // Polling for payment status - simplified and safe
@@ -805,13 +792,7 @@ export default function ClientPayments() {
     navigate('/client/auth', { replace: true });
   }
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500" />
-      </div>
-    );
-  }
+  // Don't block the entire page on auth loading - let the content render with loading states
 
   const unpaidCount = payments.filter(p => p.status === 'unpaid').length;
   const pendingCount = payments.filter(p => p.status === 'pending').length;
