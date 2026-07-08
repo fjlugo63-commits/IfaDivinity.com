@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@13.10.0?target=deno";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
@@ -13,26 +13,38 @@ serve(async (req) => {
   }
 
   try {
+    const url = new URL(req.url);
+    const path = url.pathname.split("/").pop();
+
+    // Verify the caller is an admin
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "No authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Create a client with the user's token to verify they're admin
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
-    // Verify admin auth
-    const authHeader = req.headers.get("Authorization")!;
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await createClient(supabaseUrl, supabaseAnonKey).auth.getUser(token);
-
-    if (authError || !user) {
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check admin role
-    const { data: profile } = await supabase
+    // Check if user is admin
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: profile } = await adminClient
       .from("app_340b9f1944_profiles")
       .select("role")
       .eq("id", user.id)
@@ -45,126 +57,180 @@ serve(async (req) => {
       });
     }
 
-    const url = new URL(req.url);
-    const path = url.pathname.split("/").filter(Boolean);
-    const body = req.method !== "GET" ? await req.json() : {};
+    const body = await req.json();
 
-    // Route: POST /verify-seller
-    if (req.method === "POST" && path.includes("verify-seller")) {
-      const { seller_id, verified } = body;
-      if (!seller_id) {
-        return new Response(JSON.stringify({ error: "seller_id required" }), {
-          status: 400,
+    // Route to handler
+    switch (path) {
+      case "create-test-account": {
+        const { email, password, full_name, role } = body;
+
+        if (!email || !password || !role) {
+          return new Response(JSON.stringify({ error: "email, password, and role are required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        if (!["client", "awo", "buyer", "seller", "admin"].includes(role)) {
+          return new Response(JSON.stringify({ error: "Invalid role. Must be: client, awo, buyer, seller, or admin" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Create user via Admin API
+        const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: full_name || email.split("@")[0], role },
+        });
+
+        if (createError) {
+          return new Response(JSON.stringify({ error: createError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Create profile record
+        const { error: profileError } = await adminClient
+          .from("app_340b9f1944_profiles")
+          .upsert({
+            id: newUser.user.id,
+            email,
+            full_name: full_name || email.split("@")[0],
+            role,
+          });
+
+        if (profileError) {
+          console.error("Profile creation error:", profileError);
+        }
+
+        // If role is client, also create a client record
+        if (role === "client") {
+          const { error: clientError } = await adminClient
+            .from("app_340b9f1944_clients")
+            .insert({
+              name: full_name || email.split("@")[0],
+              email,
+              timezone: "America/New_York",
+              status: "active",
+              awo_id: user.id, // Assign to the admin creating them (or a placeholder)
+            });
+
+          if (clientError && !clientError.message.includes("duplicate")) {
+            console.error("Client record creation error:", clientError);
+          }
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          user_id: newUser.user.id,
+          email,
+          role,
+          message: `Test ${role} account created successfully`,
+        }), {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const { error } = await supabase
-        .from("app_340b9f1944_profiles")
-        .update({ verified_egbo: verified !== false })
-        .eq("id", seller_id);
+      case "verify-seller": {
+        const { seller_id, verified } = body;
+        if (!seller_id) {
+          return new Response(JSON.stringify({ error: "seller_id is required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
-      if (error) throw error;
+        const { error: updateError } = await adminClient
+          .from("app_340b9f1944_profiles")
+          .update({ verified_egbo: verified })
+          .eq("id", seller_id);
 
-      // Audit log
-      await supabase.from("app_340b9f1944_audit_logs").insert({
-        actor_id: user.id,
-        action: verified !== false ? "seller.verified" : "seller.unverified",
-        resource: "profiles",
-        resource_id: seller_id,
-        metadata: { verified_egbo: verified !== false },
-      });
+        if (updateError) {
+          return new Response(JSON.stringify({ error: updateError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
-      return new Response(JSON.stringify({ success: true, verified: verified !== false }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+        // Log audit
+        await adminClient.from("app_340b9f1944_audit_logs").insert({
+          actor_id: user.id,
+          action: verified ? "seller.verified" : "seller.verification_revoked",
+          resource: "profiles",
+          resource_id: seller_id,
+          metadata: { verified },
+        });
 
-    // Route: POST /refund-order
-    if (req.method === "POST" && path.includes("refund-order")) {
-      const { order_id } = body;
-      if (!order_id) {
-        return new Response(JSON.stringify({ error: "order_id required" }), {
-          status: 400,
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Get order
-      const { data: order, error: orderError } = await supabase
-        .from("app_340b9f1944_orders")
-        .select("*")
-        .eq("id", order_id)
-        .single();
+      case "refund-order": {
+        const { order_id } = body;
+        if (!order_id) {
+          return new Response(JSON.stringify({ error: "order_id is required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
-      if (orderError || !order) {
-        return new Response(JSON.stringify({ error: "Order not found" }), {
+        // Get the order
+        const { data: order, error: orderError } = await adminClient
+          .from("app_340b9f1944_orders")
+          .select("*")
+          .eq("id", order_id)
+          .single();
+
+        if (orderError || !order) {
+          return new Response(JSON.stringify({ error: "Order not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Update order status to refunded
+        const { error: refundError } = await adminClient
+          .from("app_340b9f1944_orders")
+          .update({ status: "refunded" })
+          .eq("id", order_id);
+
+        if (refundError) {
+          return new Response(JSON.stringify({ error: refundError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Log audit
+        await adminClient.from("app_340b9f1944_audit_logs").insert({
+          actor_id: user.id,
+          action: "order.refunded",
+          resource: "orders",
+          resource_id: order_id,
+          metadata: { amount: order.total_amount },
+        });
+
+        return new Response(JSON.stringify({ success: true, refunded: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      default:
+        return new Response(JSON.stringify({ error: `Unknown endpoint: ${path}` }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-      }
-
-      // Process Stripe refund if payment intent exists
-      if (order.stripe_payment_intent_id) {
-        const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-        if (stripeSecretKey) {
-          const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
-          await stripe.refunds.create({
-            payment_intent: order.stripe_payment_intent_id,
-          });
-        }
-      }
-
-      // Update order status
-      const { error: updateError } = await supabase
-        .from("app_340b9f1944_orders")
-        .update({ status: "refunded" })
-        .eq("id", order_id);
-
-      if (updateError) throw updateError;
-
-      // Cancel associated bookings
-      await supabase
-        .from("app_340b9f1944_bookings")
-        .update({ status: "cancelled" })
-        .eq("notes", `Order: ${order_id}`);
-
-      // Audit log
-      await supabase.from("app_340b9f1944_audit_logs").insert({
-        actor_id: user.id,
-        action: "order.refunded",
-        resource: "orders",
-        resource_id: order_id,
-        metadata: { total_amount: order.total_amount, payment_intent: order.stripe_payment_intent_id },
-      });
-
-      return new Response(JSON.stringify({ success: true, refunded: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
-
-    // Route: GET /pending-sellers - list sellers pending verification
-    if (req.method === "GET" || path.includes("pending-sellers")) {
-      const { data: sellers, error: sellersError } = await supabase
-        .from("app_340b9f1944_profiles")
-        .select("*")
-        .eq("role", "seller")
-        .order("created_at", { ascending: false });
-
-      if (sellersError) throw sellersError;
-
-      return new Response(JSON.stringify({ sellers: sellers || [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: "Unknown route" }), {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("Admin endpoint error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

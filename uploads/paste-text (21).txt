@@ -1,0 +1,290 @@
+Build a new feature module called **Admin Portal – Phase 1**.
+This module must provide system-level visibility and management over Awos, Clients, Consultations, Payments, Houses, and Botanica inventory.
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Admin Access & Layout
+
+#### 1.1 Role & Access
+- Role required: `admin` or `super_admin`.
+- Enforce that non-admin users cannot access Admin Portal routes.
+- Redirect unauthorized users to their appropriate portal (Awo, Client).
+
+#### 1.2 Admin Shell Layout
+Create a dedicated Admin layout with:
+- Left sidebar navigation
+- Top bar with:
+  - Admin name
+  - Environment badge (Test/Prod)
+  - Logout button
+- Main content area for data tables and detail views.
+
+Sidebar sections:
+- Dashboard
+- Awos
+- Clients
+- Consultations
+- Payments
+- Houses
+- Botanica (Products, Orders)
+- System Settings (Phase 1 stub)
+
+------------------------------------------------------------
+### 2. Admin Dashboard
+
+#### 2.1 Overview Cards
+Show high-level metrics:
+- Total Awos
+- Total Clients
+- Total Consultations (last 30 days)
+- Total Payments (last 30 days)
+- Total Botanica Orders (last 30 days)
+
+#### 2.2 Activity Feed
+Show recent:
+- New consultations
+- New payments
+- New orders
+- New users (Awos/Clients)
+
+------------------------------------------------------------
+### 3. Awos Management
+
+#### 3.1 Awos List
+Table with:
+- Name
+- Email
+- House
+- Active status
+- Total consultations
+- Total clients
+
+#### 3.2 Awos Detail
+Detail view with:
+- Profile info
+- House membership
+- Availability summary
+- Recent consultations
+- Recent payments
+
+#### 3.3 Awos Admin Actions
+- Activate/deactivate Awo (toggle).
+- Assign/unassign House.
+- (Phase 2) Reset Awo access (stub only).
+
+------------------------------------------------------------
+### 4. Clients Management
+
+#### 4.1 Clients List
+Table with:
+- Name
+- Email
+- Timezone
+- Total consultations
+- Total payments
+- Last activity
+
+#### 4.2 Client Detail
+Detail view with:
+- Profile info
+- Consultations list
+- Payments list
+- Botanica orders list
+
+#### 4.3 Client Admin Actions
+- Mark client as test account (flag).
+- (Phase 2) Disable client login (stub only).
+
+------------------------------------------------------------
+### 5. Consultations Management
+
+#### 5.1 Consultations List
+Table with:
+- Date/time
+- Awo
+- Client
+- Status (completed, cancelled, upcoming)
+- Payment status
+- Ebo status
+
+#### 5.2 Consultation Detail
+Detail view with:
+- Metadata (Awo, Client, House, timestamps)
+- Status
+- Payment info
+- Ebo info
+- Summary metadata (no sacred content)
+
+Important:
+- Do NOT expose Awo-only notes or internal Odu mechanics.
+- Only show client-safe summary metadata.
+
+------------------------------------------------------------
+### 6. Payments Management
+
+#### 6.1 Payments List
+Table with:
+- Date/time
+- Type (Consultation/Ebo/Botanica)
+- Client
+- Amount
+- Status (paid, unpaid, pending, refunded)
+- Stripe reference
+
+#### 6.2 Payment Detail
+Detail view with:
+- Full payment metadata
+- Linked consultation or order
+- Refund info (if applicable)
+
+Admin actions:
+- View Stripe dashboard link (external).
+- (Phase 2) Trigger manual reconciliation (stub only).
+
+------------------------------------------------------------
+### 7. Houses Management
+
+#### 7.1 Houses List
+Table with:
+- House name
+- House admin
+- Number of Awos
+- Number of clients
+- Active status
+
+#### 7.2 House Detail
+Detail view with:
+- House info
+- Awos in House
+- Clients in House
+- Recent consultations
+
+Admin actions:
+- Assign/unassign Awos.
+- Assign/unassign House Admin.
+
+------------------------------------------------------------
+### 8. Botanica Management (Phase 1)
+
+#### 8.1 Products List
+Table with:
+- Product name
+- Category
+- Price
+- Stock
+- Active status
+
+#### 8.2 Product Detail
+Detail view with:
+- Description
+- Category
+- Price
+- Stock
+- Linked Ebo usage (if applicable)
+
+Admin actions:
+- Create product
+- Edit product
+- Deactivate product
+
+#### 8.3 Orders List
+Table with:
+- Date/time
+- Client
+- Total amount
+- Status
+- Payment status
+
+#### 8.4 Order Detail
+Detail view with:
+- Items
+- Quantities
+- Prices
+- Payment info
+
+------------------------------------------------------------
+### 9. System Settings (Phase 1 Stub)
+
+#### 9.1 Settings Overview
+- Subscription plans (view only)
+- Feature flags (view only)
+- Environment info (Test/Prod)
+
+No write actions in Phase 1.
+
+------------------------------------------------------------
+### 10. Backend Requirements
+
+#### 10.1 API Endpoints
+Create or extend:
+- GET /admin/dashboard
+- GET /admin/awos
+- GET /admin/awos/{id}
+- GET /admin/clients
+- GET /admin/clients/{id}
+- GET /admin/consultations
+- GET /admin/consultations/{id}
+- GET /admin/payments
+- GET /admin/payments/{id}
+- GET /admin/houses
+- GET /admin/houses/{id}
+- GET /admin/botanica/products
+- GET /admin/botanica/products/{id}
+- GET /admin/botanica/orders
+- GET /admin/botanica/orders/{id}
+
+Admin actions:
+- PUT /admin/awos/{id}/status
+- PUT /admin/awos/{id}/house
+- PUT /admin/clients/{id}/flags
+- PUT /admin/houses/{id}/members
+- POST /admin/botanica/products
+- PUT /admin/botanica/products/{id}
+
+#### 10.2 Data Sources
+- awos
+- clients
+- consultations
+- payments
+- houses
+- botanica_products (or products)
+- botanica_orders
+- botanica_order_items
+
+#### 10.3 Access Control
+- Only admin/super_admin can access these endpoints.
+- Enforce RLS bypass via server-side role, not client-side.
+
+------------------------------------------------------------
+### 11. Testing Requirements (Complete Through Test)
+
+#### 11.1 Unit Tests
+- Dashboard metrics
+- List endpoints
+- Detail endpoints
+- Admin actions (status toggles, assignments, product edits)
+
+#### 11.2 Integration Tests
+- Awos ↔ Consultations ↔ Payments linkage
+- Clients ↔ Consultations ↔ Payments ↔ Orders linkage
+- Botanica products ↔ orders ↔ payments linkage
+
+#### 11.3 UI Tests
+- Navigation between sections
+- Table rendering
+- Detail views
+- Responsive layout
+
+------------------------------------------------------------
+### 12. Deliverables
+
+- Fully implemented Admin Portal (Phase 1).
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Admin has full system-level visibility and control (excluding sacred Awo-only content and private message bodies).
+- MVP1 is functionally complete when combined with existing Awo, Client, Payments, Scheduling, Houses, and Botanica modules.
+
+------------------------------------------------------------
+
+Complete this module fully and ensure it integrates with existing Awo Portal, Client Portal, Payments, Scheduling, Houses, and Botanica.
