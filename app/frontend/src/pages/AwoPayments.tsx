@@ -36,10 +36,11 @@ import {
   Receipt,
   Leaf,
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
-const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/app_awo_payments`;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+const EDGE_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/app_awo_payments` : '';
 
 interface Payment {
   id: string;
@@ -77,9 +78,18 @@ interface PaymentSummary {
 }
 
 export default function AwoPayments() {
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
-  const [summary, setSummary] = useState<PaymentSummary | null>(null);
+  const [summary, setSummary] = useState<PaymentSummary>({
+    total_revenue: 0,
+    pending_amount: 0,
+    consultation_revenue: 0,
+    ebo_revenue: 0,
+    total_transactions: 0,
+    paid_count: 0,
+    pending_count: 0,
+    unpaid_count: 0,
+    refunded_count: 0,
+  });
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,21 +112,34 @@ export default function AwoPayments() {
   const [refundReason, setRefundReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const getAuthHeaders = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return {
-      'Authorization': `Bearer ${session?.access_token}`,
-      'Content-Type': 'application/json',
-    };
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    if (!isSupabaseConfigured) {
+      return { 'Authorization': '', 'Content-Type': 'application/json' };
+    }
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      return {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      };
+    } catch {
+      return {
+        'Authorization': '',
+        'Content-Type': 'application/json',
+      };
+    }
   };
 
   const fetchSummary = useCallback(async () => {
+    if (!isSupabaseConfigured || !EDGE_URL) return;
     try {
       const headers = await getAuthHeaders();
+      if (!headers['Authorization']) return;
       const res = await fetch(`${EDGE_URL}?action=payment-summary`, { headers });
       if (res.ok) {
         const data = await res.json();
-        setSummary(data);
+        if (data) setSummary(data);
       }
     } catch (err) {
       console.error('Failed to fetch summary:', err);
@@ -124,8 +147,10 @@ export default function AwoPayments() {
   }, []);
 
   const fetchPayments = useCallback(async () => {
+    if (!isSupabaseConfigured || !EDGE_URL) return;
     try {
       const headers = await getAuthHeaders();
+      if (!headers['Authorization']) return;
       const params = new URLSearchParams({
         action: 'list-payments',
         page: page.toString(),
@@ -137,8 +162,8 @@ export default function AwoPayments() {
       const res = await fetch(`${EDGE_URL}?${params}`, { headers });
       if (res.ok) {
         const data = await res.json();
-        setPayments(data.payments || []);
-        setTotalPayments(data.total || 0);
+        setPayments(data?.payments || []);
+        setTotalPayments(data?.total || 0);
       }
     } catch (err) {
       console.error('Failed to fetch payments:', err);
@@ -146,12 +171,14 @@ export default function AwoPayments() {
   }, [page, typeFilter, statusFilter]);
 
   const fetchPendingPayments = useCallback(async () => {
+    if (!isSupabaseConfigured || !EDGE_URL) return;
     try {
       const headers = await getAuthHeaders();
+      if (!headers['Authorization']) return;
       const res = await fetch(`${EDGE_URL}?action=pending-payments`, { headers });
       if (res.ok) {
         const data = await res.json();
-        setPendingPayments(data.payments || []);
+        setPendingPayments(data?.payments || []);
       }
     } catch (err) {
       console.error('Failed to fetch pending:', err);
@@ -159,17 +186,23 @@ export default function AwoPayments() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchSummary(), fetchPayments(), fetchPendingPayments()]);
-      setLoading(false);
+      try {
+        await Promise.allSettled([fetchSummary(), fetchPayments(), fetchPendingPayments()]);
+      } catch (err) {
+        console.error('Failed to load payment data:', err);
+      }
+      if (!cancelled) setLoading(false);
     };
     loadData();
+    return () => { cancelled = true; };
   }, [fetchSummary, fetchPayments, fetchPendingPayments]);
 
   const handleCreatePayment = async () => {
     if (!formAmount || parseFloat(formAmount) <= 0) {
-      toast({ title: 'Error', description: 'Please enter a valid amount', variant: 'destructive' });
+      toast.error('Please enter a valid amount');
       return;
     }
 
@@ -177,16 +210,16 @@ export default function AwoPayments() {
     try {
       const headers = await getAuthHeaders();
       const action = createType === 'consultation' ? 'create-consultation-payment' : 'create-ebo-payment';
-      const body: any = {
+      const body: Record<string, unknown> = {
         amount: formAmount,
         currency: formCurrency,
         client_name: formClientName,
       };
 
       if (createType === 'consultation') {
-        body.consultation_id = crypto.randomUUID(); // placeholder
+        body.consultation_id = crypto.randomUUID();
       } else {
-        body.ebo_id = crypto.randomUUID(); // placeholder
+        body.ebo_id = crypto.randomUUID();
       }
 
       const res = await fetch(`${EDGE_URL}?action=${action}`, {
@@ -196,7 +229,7 @@ export default function AwoPayments() {
       });
 
       if (res.ok) {
-        toast({ title: 'Payment Created', description: 'Payment record created successfully' });
+        toast.success('Payment record created successfully');
         setShowCreateDialog(false);
         setFormAmount('');
         setFormClientName('');
@@ -204,10 +237,10 @@ export default function AwoPayments() {
         await Promise.all([fetchSummary(), fetchPayments(), fetchPendingPayments()]);
       } else {
         const err = await res.json();
-        toast({ title: 'Error', description: err.error, variant: 'destructive' });
+        toast.error(err.error || 'Failed to create payment');
       }
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to create payment', variant: 'destructive' });
+    } catch {
+      toast.error('Failed to create payment');
     }
     setActionLoading(false);
   };
@@ -224,18 +257,18 @@ export default function AwoPayments() {
 
       if (res.ok) {
         const data = await res.json();
-        toast({ title: 'Payment Link Generated', description: 'Link is ready to share with client' });
+        toast.success('Payment link generated');
         await Promise.all([fetchPayments(), fetchPendingPayments()]);
         if (data.payment_link) {
           navigator.clipboard.writeText(data.payment_link);
-          toast({ title: 'Copied!', description: 'Payment link copied to clipboard' });
+          toast.success('Payment link copied to clipboard');
         }
       } else {
         const err = await res.json();
-        toast({ title: 'Error', description: err.error, variant: 'destructive' });
+        toast.error(err.error || 'Failed to generate link');
       }
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to generate link', variant: 'destructive' });
+    } catch {
+      toast.error('Failed to generate link');
     }
     setActionLoading(false);
   };
@@ -251,14 +284,14 @@ export default function AwoPayments() {
       });
 
       if (res.ok) {
-        toast({ title: 'Payment Completed', description: 'Payment marked as paid' });
+        toast.success('Payment marked as paid');
         await Promise.all([fetchSummary(), fetchPayments(), fetchPendingPayments()]);
       } else {
         const err = await res.json();
-        toast({ title: 'Error', description: err.error, variant: 'destructive' });
+        toast.error(err.error || 'Failed to mark as paid');
       }
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to mark as paid', variant: 'destructive' });
+    } catch {
+      toast.error('Failed to mark as paid');
     }
     setActionLoading(false);
   };
@@ -275,24 +308,24 @@ export default function AwoPayments() {
       });
 
       if (res.ok) {
-        toast({ title: 'Refund Processed', description: 'Payment has been refunded' });
+        toast.success('Refund processed successfully');
         setShowRefundDialog(false);
         setSelectedPayment(null);
         setRefundReason('');
         await Promise.all([fetchSummary(), fetchPayments(), fetchPendingPayments()]);
       } else {
         const err = await res.json();
-        toast({ title: 'Error', description: err.error, variant: 'destructive' });
+        toast.error(err.error || 'Failed to process refund');
       }
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to process refund', variant: 'destructive' });
+    } catch {
+      toast.error('Failed to process refund');
     }
     setActionLoading(false);
   };
 
   const copyLink = (url: string) => {
     navigator.clipboard.writeText(url);
-    toast({ title: 'Copied', description: 'Payment link copied to clipboard' });
+    toast.success('Payment link copied to clipboard');
   };
 
   const getStatusBadge = (status: string) => {
