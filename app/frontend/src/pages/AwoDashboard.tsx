@@ -613,6 +613,20 @@ function HouseVisibilityPanel({
                 </div>
               )}
             </div>
+
+            <Separator />
+
+            {/* House Dashboard Link */}
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                className="w-full gap-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                onClick={() => window.location.href = '/awo/house'}
+              >
+                <Building2 className="h-4 w-4" />
+                View Full House Dashboard
+              </Button>
+            </div>
           </CardContent>
         </CollapsibleContent>
       </Card>

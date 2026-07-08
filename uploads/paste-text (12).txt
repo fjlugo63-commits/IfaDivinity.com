@@ -1,0 +1,176 @@
+Build a new feature module called **House-Level Features** inside the Awo Portal.  
+This module must allow Ifa Houses to manage practitioners, shared records, house-wide consultations, and subscriptions.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. House-Level Features — Functional Requirements
+
+#### 1.1 House Dashboard
+- Display overview for the logged-in House:
+  - Total practitioners
+  - Total active clients
+  - Upcoming house-wide consultations
+  - Pending payments (house-level)
+- Show recent activity:
+  - New consultations
+  - New clients
+  - Practitioner changes
+
+#### 1.2 Practitioner Management
+- List all practitioners (Awos) in the House.
+- Show:
+  - Name
+  - Email
+  - Role (Awo, House Admin)
+  - Status (Active/Inactive)
+- Allow House Admin to:
+  - Invite new practitioner (email-based)
+  - Activate/deactivate practitioner
+  - Assign/remove House Admin role.
+
+#### 1.3 House Clients
+- List all clients associated with the House (across all Awos).
+- Show:
+  - Name
+  - Primary Awo
+  - Last consultation date
+  - Total consultations.
+- Allow filtering by:
+  - Awo
+  - Active/inactive
+  - Upcoming consultations.
+
+#### 1.4 House-Wide Consultations
+- Display consultations across all Awos in the House.
+- Show:
+  - Client
+  - Awo
+  - Date/time
+  - Status
+- Allow House Admin to:
+  - Reassign consultation to another Awo.
+  - Cancel consultation.
+  - View consultation details (opens Consultation History).
+
+#### 1.5 Shared Records
+- Allow House to mark certain consultations as “shared”.
+- Shared consultations must be visible to:
+  - All House Admins
+  - Selected Awos (if configured).
+- Provide:
+  - Shared consultation list
+  - Access to Odu, Ire/Osogbo, Ebo, Notes, Summary.
+
+#### 1.6 House Subscription Management
+- Display current House subscription plan.
+- Show:
+  - Plan name
+  - Seats (number of Awos)
+  - Billing cycle
+  - Renewal date.
+- Allow House Admin to:
+  - Upgrade/downgrade plan (integration stub).
+  - View billing history (summary only).
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- House Dashboard page includes:
+  - Summary cards (top)
+  - Practitioner list
+  - House clients list
+  - House-wide consultations
+  - Shared records panel.
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- House-level visuals must feel distinct from individual Awo views (e.g., subtle banner or badge).
+
+#### 2.3 UX Behavior
+- Smooth transitions between practitioners, clients, and consultations.
+- Toast notifications for:
+  - Practitioner invited
+  - Role changed
+  - Consultation reassigned.
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- GET /house/dashboard
+- GET /house/practitioners
+- POST /house/practitioners/invite
+- PUT /house/practitioners/{id}/status
+- PUT /house/practitioners/{id}/role
+- GET /house/clients
+- GET /house/consultations
+- PUT /house/consultations/{id}/reassign
+- PUT /house/consultations/{id}/cancel
+- GET /house/shared-consultations
+- POST /house/shared-consultations/{id}/share
+- GET /house/subscription
+- GET /house/subscription/billing-history
+
+#### 3.2 Data Sources
+- houses table
+- house_practitioners table
+- clients table
+- consultations table
+- consultation_odu, ire_osogbo, ebo, notes, summary tables
+- subscription_entitlements table.
+
+#### 3.3 Access Control
+- Only House Admins can:
+  - Manage practitioners
+  - Reassign consultations
+  - Manage subscription.
+- Awos can:
+  - View house dashboard (limited)
+  - View shared records they have access to.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with Awo Dashboard
+- If Awo belongs to a House:
+  - Show House panel in Awo Dashboard.
+  - Link to House Dashboard.
+
+#### 4.2 Integration with Client Management
+- House Clients list must link into Client Management filtered by House.
+
+#### 4.3 Integration with Consultation History
+- Shared records must open Consultation History (Module 2E).
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Practitioner invite, role change, and status change work.
+- House clients and consultations load correctly.
+- Shared records flag behaves correctly.
+
+#### 5.2 Integration Tests
+- Reassigning consultations updates Awo and appears in Scheduling.
+- Shared consultations appear in Consultation History for allowed users.
+
+#### 5.3 UI Tests
+- House Dashboard renders correctly.
+- Role-based visibility works (Admin vs Awo).
+- Responsive layout works on desktop/tablet/mobile.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented House-Level Features module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated with Awo Dashboard, Client Management, Scheduling, and Consultation History.
+- Completes Phase Group 2 (Awo Portal + House Features).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare for Phase Group 3 (Smart Opele Integration).
