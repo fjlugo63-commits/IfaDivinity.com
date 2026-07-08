@@ -41,6 +41,7 @@ export default function SystemTestAccounts() {
   const [sendingMagicLink, setSendingMagicLink] = useState<string | null>(null);
   const [existingAccounts, setExistingAccounts] = useState<TestAccount[]>([]);
   const [createResults, setCreateResults] = useState<CreateResult[] | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTestAccounts();
@@ -70,6 +71,7 @@ export default function SystemTestAccounts() {
     e.preventDefault();
     setLoading(true);
     setCreateResults(null);
+    setErrorDetail(null);
 
     try {
       if (!isSupabaseConfigured) {
@@ -78,28 +80,43 @@ export default function SystemTestAccounts() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('app_seed_test_users', {
+      const response = await supabase.functions.invoke('app_seed_test_users', {
         body: { secret, action: 'create' },
       });
 
+      const { data, error } = response;
+
       if (error) {
         let errorMessage = error.message || 'Unknown error occurred';
+        let detail = '';
         try {
+          // Try to extract context from FunctionsHttpError
           if (error.context) {
-            const ctx = typeof error.context.json === 'function'
-              ? await error.context.json()
-              : error.context;
-            if (ctx?.error) errorMessage = ctx.error;
+            if (typeof error.context.json === 'function') {
+              const ctx = await error.context.json();
+              if (ctx?.error) errorMessage = ctx.error;
+              detail = JSON.stringify(ctx, null, 2);
+            } else if (typeof error.context.text === 'function') {
+              detail = await error.context.text();
+            } else {
+              detail = JSON.stringify(error.context, null, 2);
+            }
           }
         } catch {
-          // Use original message
+          detail = `Raw error: ${JSON.stringify(error, null, 2)}`;
         }
+        setErrorDetail(`${errorMessage}\n\nDetails:\n${detail || 'No additional details available.'}`);
         toast.error(`Failed: ${errorMessage}`);
       } else if (data?.error) {
+        setErrorDetail(`Server returned error: ${data.error}`);
         toast.error(data.error);
       } else if (data?.results) {
         setCreateResults(data.results);
         const successCount = data.results.filter((r: CreateResult) => r.status === 'created' || r.status === 'updated').length;
+        const errorResults = data.results.filter((r: CreateResult) => r.status === 'error');
+        if (errorResults.length > 0) {
+          setErrorDetail(`Partial failure:\n${errorResults.map((r: CreateResult) => `• ${r.email}: ${r.error}`).join('\n')}`);
+        }
         if (successCount === data.results.length) {
           toast.success(data.message || 'All test accounts created successfully!');
         } else {
@@ -107,9 +124,15 @@ export default function SystemTestAccounts() {
         }
         // Refresh the list
         await fetchTestAccounts();
+      } else {
+        // Unexpected response shape
+        setErrorDetail(`Unexpected response:\n${JSON.stringify(data, null, 2)}`);
+        toast.error('Unexpected response from server');
       }
     } catch (err: any) {
-      toast.error(`Error: ${err.message}`);
+      const msg = err?.message || String(err);
+      setErrorDetail(`Exception: ${msg}\n\nStack: ${err?.stack || 'N/A'}`);
+      toast.error(`Error: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -313,6 +336,33 @@ export default function SystemTestAccounts() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Error Detail Panel */}
+        {errorDetail && (
+          <Card className="mt-6 border-red-200 bg-red-50">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2 text-red-800">
+                  <AlertTriangle className="h-5 w-5" />
+                  Error Details
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setErrorDetail(null)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <pre className="text-xs text-red-800 bg-red-100 p-3 rounded-lg overflow-auto max-h-64 whitespace-pre-wrap font-mono">
+                {errorDetail}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Creation Results */}
         {createResults && (
