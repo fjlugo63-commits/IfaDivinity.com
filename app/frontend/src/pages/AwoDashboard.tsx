@@ -14,6 +14,7 @@ import {
   Megaphone,
   FileSearch,
   BellOff,
+  DollarSign,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -283,6 +284,13 @@ function QuickActionsPanel({
       color: 'bg-emerald-600 text-white hover:bg-emerald-700',
       onClick: () => navigate('/awo/pending-ebo'),
       entitlement: 'egbo_services',
+    },
+    {
+      label: 'Manage Payments',
+      icon: DollarSign,
+      color: 'bg-amber-600 text-white hover:bg-amber-700',
+      onClick: () => navigate('/awo/payments'),
+      entitlement: null,
     },
   ];
 

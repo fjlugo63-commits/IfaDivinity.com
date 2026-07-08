@@ -21,6 +21,7 @@ import ConsultationWorkspace from './pages/ConsultationWorkspace';
 import ConsultationHistory from './pages/ConsultationHistory';
 import AwoScheduling from './pages/AwoScheduling';
 import AwoClients from './pages/AwoClients';
+import AwoPayments from './pages/AwoPayments';
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const AppRoutes = () => (
     <Route path="/awo/dashboard" element={<AwoDashboard />} />
     <Route path="/awo/schedule" element={<AwoScheduling />} />
     <Route path="/awo/clients" element={<AwoClients />} />
+    <Route path="/awo/payments" element={<AwoPayments />} />
     <Route path="/consultation/:id" element={<ConsultationWorkspace />} />
     <Route path="/awo/history" element={<ConsultationHistory />} />
     <Route path="/admin" element={<Admin />} />

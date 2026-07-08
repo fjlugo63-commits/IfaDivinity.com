@@ -1,0 +1,93 @@
+Build a new feature module called **Payments** inside the Awo Portal.  
+This module must allow Awos to manage consultation payments, Ebo payments, view transaction history, and integrate with Stripe and Botanica.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Payments — Functional Requirements
+
+#### 1.1 Consultation Payments
+- Each consultation must have a payment status:
+  - Unpaid
+  - Pending
+  - Paid
+  - Refunded
+- Allow Awo to:
+  - Mark consultation as paid (manual)
+  - Trigger Stripe payment link (automatic)
+- Store:
+  - amount
+  - currency
+  - payment_status
+  - stripe_payment_intent_id
+  - paid_at timestamp
+
+#### 1.2 Ebo Payments
+- Ebo Workflow (Module 2C) must expose:
+  - Ebo category
+  - Required items
+  - Total cost (if Botanica items are used)
+- Payments module must:
+  - Generate Stripe checkout session for Ebo
+  - Track payment status
+  - Store Botanica item references
+
+#### 1.3 Payment Links
+- Generate Stripe-hosted payment links for:
+  - Consultation payments
+  - Ebo payments
+- Store:
+  - stripe_payment_link_url
+  - expiration timestamp
+- Allow Awo to resend payment link to client.
+
+#### 1.4 Transaction History
+- Show all payments for the logged-in Awo:
+  - Consultation payments
+  - Ebo payments
+  - Refunds
+- Display:
+  - Date/time
+  - Client
+  - Type (Consultation/Ebo)
+  - Amount
+  - Status
+  - Stripe reference
+
+#### 1.5 Refund Workflow
+- Allow Awo to initiate refund (if Stripe allows).
+- Update:
+  - payment_status = refunded
+  - refunded_at timestamp
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Payments page includes:
+  - Payments Overview (summary cards)
+  - Transaction History table
+  - Pending Payments panel
+  - Ebo Payments panel
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Payment statuses must use color-coded badges:
+  - Paid = green
+  - Pending = amber
+  - Unpaid = red
+  - Refunded = gray
+
+#### 2.3 UX Behavior
+- Toast notifications for:
+  - Payment link generated
+  - Payment completed
+  - Refund processed
+- Smooth transitions between payment types.
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- POST /payments/consultation/{id}/create-payment-link
+- POST /payments/ebo/{id}/create-payment
