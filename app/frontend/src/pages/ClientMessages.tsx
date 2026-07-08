@@ -238,7 +238,7 @@ const ClientMessages = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-amber-50">
+      <div className="flex items-center justify-center py-20">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
             <p className="text-gray-600">Please log in to view messages.</p>
@@ -252,10 +252,10 @@ const ClientMessages = () => {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50/30">
-      {/* Header */}
-      <header className="bg-white border-b border-amber-100 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+    <div>
+      {/* Sub-header for conversation context */}
+      <div className="bg-white border-b border-amber-100 px-4 py-3">
+        <div className="max-w-4xl mx-auto flex items-center gap-3">
           {selectedPartner ? (
             <>
               <Button
@@ -276,21 +276,14 @@ const ClientMessages = () => {
             </>
           ) : (
             <>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/client/dashboard')}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
               <MessageSquare className="h-5 w-5 text-indigo-600" />
               <h1 className="font-semibold text-gray-900">Messages</h1>
             </>
           )}
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-4xl mx-auto flex h-[calc(100vh-57px)]">
+      <div className="max-w-4xl mx-auto flex h-[calc(100vh-120px)]">
         {/* Conversation List - shown on mobile only when no partner selected */}
         <div className={`w-full md:w-80 md:border-r border-amber-100 bg-white ${selectedPartner ? 'hidden md:block' : 'block'}`}>
           {loading ? (

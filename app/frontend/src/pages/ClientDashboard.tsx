@@ -220,7 +220,7 @@ export default function ClientDashboard() {
 
   if (loading || dataLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500 mx-auto mb-4" />
           <p className="text-gray-600">Loading your dashboard...</p>
@@ -230,37 +230,22 @@ export default function ClientDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-amber-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 font-[Rubik]">Welcome, {clientName}</h1>
-              <p className="text-xs text-gray-500">Client Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="rounded-xl relative">
-              <Bell className="h-4 w-4" />
-              {(dashboardData.pending_bookings > 0 || dashboardData.pending_payments > 0) && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-                  {dashboardData.pending_bookings + dashboardData.pending_payments}
-                </span>
-              )}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="rounded-xl text-gray-600 hover:text-red-600">
-              <LogOut className="h-4 w-4 mr-1" />
-              Logout
-            </Button>
-          </div>
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      {/* Welcome Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 font-[Rubik]">Welcome, {clientName}</h1>
+          <p className="text-sm text-gray-500">Your spiritual journey at a glance</p>
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <Button variant="ghost" size="sm" className="rounded-xl relative">
+          <Bell className="h-4 w-4" />
+          {(dashboardData.pending_bookings > 0 || dashboardData.pending_payments > 0) && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
+              {dashboardData.pending_bookings + dashboardData.pending_payments}
+            </span>
+          )}
+        </Button>
+      </div>
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Upcoming Consultation */}
@@ -517,7 +502,6 @@ export default function ClientDashboard() {
             </CardContent>
           </Card>
         </div>
-      </main>
     </div>
   );
 }

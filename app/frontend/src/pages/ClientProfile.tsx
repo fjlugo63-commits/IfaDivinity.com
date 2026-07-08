@@ -378,7 +378,7 @@ export default function ClientProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-pulse text-center">
           <div className="w-16 h-16 bg-indigo-200 rounded-full mx-auto mb-4" />
           <p className="text-gray-500">Loading profile...</p>
@@ -389,7 +389,7 @@ export default function ClientProfile() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <Card className="max-w-md w-full mx-4">
           <CardContent className="pt-6 text-center">
             <p className="text-gray-600">Unable to load profile. Please try again.</p>
@@ -403,38 +403,24 @@ export default function ClientProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-amber-100 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/client/dashboard')}
-              className="text-gray-600 hover:text-indigo-700"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 font-[Rubik]">My Profile</h1>
-              <p className="text-sm text-gray-500">Manage your personal information</p>
-            </div>
-          </div>
-          {!isEditing && (
-            <Button
-              onClick={startEditing}
-              variant="outline"
-              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-            >
-              <Edit3 className="h-4 w-4 mr-2" />
-              Edit Profile
-            </Button>
-          )}
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 font-[Rubik]">My Profile</h1>
+          <p className="text-sm text-gray-500">Manage your personal information</p>
         </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {!isEditing && (
+          <Button
+            onClick={startEditing}
+            variant="outline"
+            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+          >
+            <Edit3 className="h-4 w-4 mr-2" />
+            Edit Profile
+          </Button>
+        )}
+      </div>
         {/* Profile Information Card */}
         <Card className="border-amber-100 shadow-sm">
           <CardHeader>
@@ -735,7 +721,6 @@ export default function ClientProfile() {
             </div>
           </CardContent>
         </Card>
-      </main>
     </div>
   );
 }

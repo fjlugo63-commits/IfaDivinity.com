@@ -701,7 +701,7 @@ export default function ClientBookings() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500" />
       </div>
     );
@@ -711,36 +711,19 @@ export default function ClientBookings() {
   const proposedCount = bookings.filter(b => b.status === 'proposed_new_time').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-amber-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => navigate('/client/dashboard')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 font-[Rubik]">Book a Consultation</h1>
-              <p className="text-xs text-gray-500">Find available times and manage your bookings</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="rounded-xl relative">
-              <Bell className="h-4 w-4" />
-              {(pendingCount + proposedCount) > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-                  {pendingCount + proposedCount}
-                </span>
-              )}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="rounded-xl text-gray-600 hover:text-red-600">
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 font-[Rubik]">Book a Consultation</h1>
+          <p className="text-sm text-gray-500">Find available times and manage your bookings</p>
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 py-6">
+        {(pendingCount + proposedCount) > 0 && (
+          <Badge className="bg-amber-100 text-amber-700 rounded-full">
+            {pendingCount + proposedCount} action{(pendingCount + proposedCount) > 1 ? 's' : ''} needed
+          </Badge>
+        )}
+      </div>
         {/* Action required banner */}
         {proposedCount > 0 && (
           <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 flex items-center gap-3">
@@ -803,7 +786,6 @@ export default function ClientBookings() {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
 
       {/* Create Booking Dialog */}
       <Dialog open={!!selectedSlot} onOpenChange={() => setSelectedSlot(null)}>

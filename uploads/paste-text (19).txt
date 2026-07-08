@@ -1,0 +1,145 @@
+Build a new feature module called **Client Portal – CP‑7: Navigation + Integration**.  
+This module must unify all Client Portal modules, create a complete navigation system, and ensure cross‑module integration.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Navigation System
+
+#### 1.1 Global Client Navigation Bar
+Create a persistent navigation bar with links to:
+- Dashboard
+- Book Consultation
+- Consultations
+- Payments
+- Messages
+- Profile
+- Botanica Marketplace (Phase 1)
+- Logout
+
+Requirements:
+- Highlight active page
+- Mobile‑responsive collapse menu
+- Use IfaDivinity design system tokens
+
+#### 1.2 Routing
+Define routes for:
+- /client/dashboard
+- /client/book
+- /client/consultations
+- /client/consultations/{id}
+- /client/payments
+- /client/payments/{id}
+- /client/messages
+- /client/profile
+- /client/botanica (Phase 1 stub)
+
+Ensure:
+- Role = client required
+- Unauthorized users redirected to login
+
+------------------------------------------------------------
+### 2. Cross‑Module Integration
+
+#### 2.1 Dashboard Integration
+Dashboard must link to:
+- Booking Flow (CP‑2)
+- Consultation History (CP‑4)
+- Payments (CP‑3)
+- Messages (CP‑5)
+- Profile (CP‑6)
+
+#### 2.2 Booking Flow Integration
+Booking Flow must:
+- Redirect accepted bookings to Consultation Detail (CP‑4)
+- Redirect accepted bookings to Payment Status (CP‑3)
+- Show booking status on Dashboard
+
+#### 2.3 Payments Integration
+Payments must:
+- Link back to Consultation Detail (CP‑4)
+- Link to Ebo detail (if applicable)
+- Show receipts
+- Update Dashboard payment cards
+
+#### 2.4 Consultation History Integration
+Consultation Detail must:
+- Link to Payments (CP‑3)
+- Link to Ebo (if applicable)
+- Show summary viewer
+- Show booking reference
+
+#### 2.5 Messaging Integration
+Messaging must:
+- Show unread count in navigation bar
+- Link from Dashboard
+- Link from Consultation Detail (optional)
+
+#### 2.6 Profile Integration
+Profile must:
+- Update timezone across all modules
+- Update name/email on Dashboard
+- Update timestamps in:
+  - Booking Flow
+  - Consultation History
+  - Payments
+
+------------------------------------------------------------
+### 3. UI Requirements
+
+#### 3.1 Unified Client Experience
+- Consistent styling across all CP modules
+- Shared header and footer
+- Shared navigation bar
+- Shared toast notification system
+
+#### 3.2 Mobile Responsiveness
+- Collapsible navigation
+- Mobile‑friendly booking calendar
+- Mobile‑friendly consultation list
+- Mobile‑friendly payment history
+
+------------------------------------------------------------
+### 4. Backend Requirements
+
+#### 4.1 Session Integration
+- All routes must validate client session
+- Auto‑redirect to login if session expires
+
+#### 4.2 Data Consistency
+- Timezone conversion must be applied globally
+- Payment status must sync across modules
+- Booking status must sync across modules
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Navigation rendering
+- Route protection
+- Unread message count
+- Dashboard link behavior
+
+#### 5.2 Integration Tests
+- Dashboard → Booking → Consultation → Payment flow
+- Profile timezone update → all modules
+- Payment completion → Dashboard + Consultation History
+
+#### 5.3 UI Tests
+- Mobile navigation
+- Active page highlighting
+- Cross‑module transitions
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Client Portal navigation system.
+- All modules integrated into a unified experience.
+- All backend endpoints connected.
+- All UI components styled and responsive.
+- All tests passing.
+- Client Portal is now fully complete.
+- MVP1 is ready for final modules: Botanica Marketplace + Admin Portal.
+
+------------------------------------------------------------
+
+Complete this module fully and prepare for Botanica Marketplace (Phase 1).

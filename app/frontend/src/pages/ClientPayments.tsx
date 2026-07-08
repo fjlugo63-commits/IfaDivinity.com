@@ -799,41 +799,21 @@ export default function ClientPayments() {
   const totalPaid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.amount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-amber-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => navigate('/client/dashboard')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 font-[Rubik]">Payments</h1>
-              <p className="text-xs text-gray-500">View and manage your payment history</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {pollingPaymentId && (
-              <Badge className="bg-amber-100 text-amber-700 rounded-full text-xs animate-pulse gap-1">
-                <RefreshCw className="h-3 w-3 animate-spin" /> Checking payment...
-              </Badge>
-            )}
-            <Button variant="ghost" size="sm" className="rounded-xl relative">
-              <Bell className="h-4 w-4" />
-              {(unpaidCount + pendingCount) > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-                  {unpaidCount + pendingCount}
-                </span>
-              )}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="rounded-xl text-gray-600 hover:text-red-600">
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 font-[Rubik]">Payments</h1>
+          <p className="text-sm text-gray-500">View and manage your payment history</p>
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 py-6">
+        <div className="flex items-center gap-2">
+          {pollingPaymentId && (
+            <Badge className="bg-amber-100 text-amber-700 rounded-full text-xs animate-pulse gap-1">
+              <RefreshCw className="h-3 w-3 animate-spin" /> Checking payment...
+            </Badge>
+          )}
+        </div>
+      </div>
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="rounded-2xl border-0 shadow-sm bg-white">
@@ -947,7 +927,6 @@ export default function ClientPayments() {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
 
       {/* Payment Detail Dialog */}
       <PaymentDetailDialog

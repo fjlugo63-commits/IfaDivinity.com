@@ -36,7 +36,12 @@ const ClientBookings = lazy(() => import('./pages/ClientBookings'));
 const ClientPayments = lazy(() => import('./pages/ClientPayments'));
 const ClientMessages = lazy(() => import('./pages/ClientMessages'));
 const ClientProfilePage = lazy(() => import('./pages/ClientProfile'));
+const ClientConsultations = lazy(() => import('./pages/ClientConsultations'));
+const ClientBotanica = lazy(() => import('./pages/ClientBotanica'));
 const AwoMessages = lazy(() => import('./pages/AwoMessages'));
+
+// Client Layout (eager load for wrapping)
+import { ClientLayout } from './components/ClientLayout';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -79,11 +84,18 @@ const AppRoutes = () => (
       <Route path="/awo/history" element={<ConsultationHistory />} />
       <Route path="/client/auth" element={<ClientAuth />} />
       <Route path="/client/auth/callback" element={<ClientAuthCallback />} />
-      <Route path="/client/dashboard" element={<ClientDashboard />} />
-      <Route path="/client/bookings" element={<ClientBookings />} />
-      <Route path="/client/payments" element={<ClientPayments />} />
-      <Route path="/client/messages" element={<ClientMessages />} />
-      <Route path="/client/profile" element={<ClientProfilePage />} />
+      {/* Client Portal - Nested routes with shared layout */}
+      <Route path="/client" element={<ClientLayout />}>
+        <Route path="dashboard" element={<ClientDashboard />} />
+        <Route path="bookings" element={<ClientBookings />} />
+        <Route path="payments" element={<ClientPayments />} />
+        <Route path="messages" element={<ClientMessages />} />
+        <Route path="profile" element={<ClientProfilePage />} />
+        <Route path="consultations" element={<ClientConsultations />} />
+        <Route path="consultations/:id" element={<ClientConsultations />} />
+        <Route path="botanica" element={<ClientBotanica />} />
+        <Route index element={<Navigate to="/client/dashboard" replace />} />
+      </Route>
       <Route path="/awo/messages" element={<AwoMessages />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
