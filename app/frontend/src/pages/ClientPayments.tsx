@@ -17,7 +17,6 @@ import {
   XCircle,
   RefreshCw,
   ArrowLeft,
-  ExternalLink,
   Receipt,
   DollarSign,
   Calendar,
@@ -158,8 +157,19 @@ const MOCK_PAYMENTS: ClientPayment[] = [
 ];
 
 // ============ API HELPER ============
-async function callClientPaymentsAPI(action: string, method: string = 'GET', body?: Record<string, unknown>) {
-  const { data: { session } } = await supabase.auth.getSession();
+async function callClientPaymentsAPI(action: string, method: string = 'GET', body?: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase not configured');
+  }
+
+  let session = null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    session = data?.session;
+  } catch {
+    throw new Error('Failed to get auth session');
+  }
+
   if (!session) throw new Error('Not authenticated');
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -179,9 +189,21 @@ async function callClientPaymentsAPI(action: string, method: string = 'GET', bod
     options.body = JSON.stringify(body);
   }
 
-  const res = await fetch(url, options);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'API request failed');
+  let res: Response;
+  try {
+    res = await fetch(url, options);
+  } catch {
+    throw new Error('Network error - could not reach payment service');
+  }
+
+  let data: Record<string, unknown>;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error('Invalid response from payment service');
+  }
+
+  if (!res.ok) throw new Error((data.error as string) || 'API request failed');
   return data;
 }
 
@@ -498,7 +520,9 @@ function PaymentDetailDialog({
                   <p className="text-xs font-medium text-gray-700">Refund Information</p>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">Refund Amount</span>
-                    <span className="text-sm font-semibold text-gray-700">${payment.refund_amount?.toFixed(2)}</span>
+                    <span className="text-sm font-semibold text-gray-700">
+                      ${payment.refund_amount != null ? payment.refund_amount.toFixed(2) : '0.00'}
+                    </span>
                   </div>
                   {payment.refunded_at && (
                     <div className="flex items-center justify-between">
@@ -572,7 +596,16 @@ export default function ClientPayments() {
   const [loading, setLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState<ClientPayment | null>(null);
   const [pollingPaymentId, setPollingPaymentId] = useState<string | null>(null);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Track mounted state to prevent state updates after unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Auth guard
   useEffect(() => {
@@ -582,37 +615,73 @@ export default function ClientPayments() {
   }, [user, authLoading, navigate]);
 
   const fetchPayments = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setLoading(true);
+
     if (!isSupabaseConfigured) {
       setPayments(MOCK_PAYMENTS);
       setLoading(false);
       return;
     }
+
     try {
       const data = await callClientPaymentsAPI('get-client-payments');
-      setPayments(data.payments || []);
+      if (isMountedRef.current) {
+        const fetchedPayments = data.payments;
+        if (Array.isArray(fetchedPayments)) {
+          setPayments(fetchedPayments as ClientPayment[]);
+        } else {
+          // API returned but no payments array - use mock as fallback
+          setPayments(MOCK_PAYMENTS);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch payments:', err);
-      setPayments(MOCK_PAYMENTS);
+      if (isMountedRef.current) {
+        // Graceful fallback to mock data
+        setPayments(MOCK_PAYMENTS);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     if (user) {
       fetchPayments();
+    } else if (!authLoading) {
+      // Not loading and no user - just show empty state without crashing
+      setLoading(false);
+      setPayments([]);
     }
-  }, [user, fetchPayments]);
+  }, [user, authLoading, fetchPayments]);
 
-  // Polling for payment status
+  // Polling for payment status - simplified and safe
   useEffect(() => {
     if (!pollingPaymentId) return;
 
+    let cancelled = false;
+    let pollCount = 0;
+    const maxPolls = 60; // Max 3 minutes of polling (every 3s)
+
     const poll = async () => {
+      if (cancelled || !isMountedRef.current) return;
+      pollCount++;
+
+      if (pollCount > maxPolls) {
+        // Stop polling after max attempts
+        if (isMountedRef.current) {
+          toast.info('Payment check timed out. Refresh the page to see updated status.');
+          setPollingPaymentId(null);
+        }
+        return;
+      }
+
       if (!isSupabaseConfigured) {
-        // Mock: simulate payment completion after 5 seconds
-        setTimeout(() => {
+        // Mock: simulate payment completion after ~5 seconds (2 poll cycles)
+        if (pollCount >= 2 && isMountedRef.current) {
           setPayments(prev => prev.map(p =>
             p.id === pollingPaymentId
               ? { ...p, status: 'paid' as const, paid_at: new Date().toISOString(), stripe_reference: 'pi_mock_completed' }
@@ -620,51 +689,50 @@ export default function ClientPayments() {
           ));
           toast.success('Payment completed!', { description: 'Your payment has been processed successfully.' });
           setPollingPaymentId(null);
-        }, 5000);
+        } else if (isMountedRef.current && !cancelled) {
+          pollingRef.current = setTimeout(poll, 3000);
+        }
         return;
       }
 
       try {
         const data = await callClientPaymentsAPI('get-payment-status', 'GET');
-        const updatedPayment = data.payment;
-        if (updatedPayment && (updatedPayment.status === 'paid' || updatedPayment.status === 'expired')) {
+        if (cancelled || !isMountedRef.current) return;
+
+        const updatedPayment = data.payment as ClientPayment | undefined;
+        if (updatedPayment && (updatedPayment.status === 'paid' || updatedPayment.status === 'refunded')) {
           setPayments(prev => prev.map(p => p.id === pollingPaymentId ? { ...p, ...updatedPayment } : p));
           if (updatedPayment.status === 'paid') {
             toast.success('Payment completed!', { description: 'Your payment has been processed successfully.' });
-            // Navigate to consultation or ebo detail
             if (updatedPayment.consultation_id) {
               navigate(`/consultation/${updatedPayment.consultation_id}`);
             }
-          } else {
-            toast.error('Payment link expired', { description: 'Please try again or contact your practitioner.' });
           }
           setPollingPaymentId(null);
+          return;
         }
       } catch (err) {
         console.error('Polling error:', err);
+        // Don't crash - just continue polling
+      }
+
+      // Schedule next poll
+      if (!cancelled && isMountedRef.current) {
+        pollingRef.current = setTimeout(poll, 3000);
       }
     };
 
-    pollingRef.current = setInterval(poll, 3000);
-    // Initial poll
-    poll();
+    // Start first poll after a short delay
+    pollingRef.current = setTimeout(poll, 2000);
 
     return () => {
+      cancelled = true;
       if (pollingRef.current) {
-        clearInterval(pollingRef.current);
+        clearTimeout(pollingRef.current);
         pollingRef.current = null;
       }
     };
   }, [pollingPaymentId, navigate]);
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
-    };
-  }, []);
 
   function handleOpenPaymentLink(payment: ClientPayment) {
     if (!payment.stripe_payment_link) {
@@ -681,8 +749,12 @@ export default function ClientPayments() {
   }
 
   async function handleLogout() {
-    await signOut();
-    toast.success('Logged out successfully');
+    try {
+      await signOut();
+      toast.success('Logged out successfully');
+    } catch {
+      // Still navigate even if signOut fails
+    }
     navigate('/client/auth', { replace: true });
   }
 
@@ -696,7 +768,7 @@ export default function ClientPayments() {
 
   const unpaidCount = payments.filter(p => p.status === 'unpaid').length;
   const pendingCount = payments.filter(p => p.status === 'pending').length;
-  const totalPaid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+  const totalPaid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.amount || 0), 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
