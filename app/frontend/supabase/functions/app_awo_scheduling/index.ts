@@ -7,6 +7,47 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
+// ============ TIMEZONE UTILITIES ============
+function getTimezoneOffset(timezone: string, date: Date): number {
+  try {
+    const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+    return (tzDate.getTime() - utcDate.getTime()) / 60000;
+  } catch {
+    return 0;
+  }
+}
+
+function convertTimestamp(isoString: string, fromTz: string, toTz: string): string {
+  if (!isoString || fromTz === toTz) return isoString;
+  try {
+    const date = new Date(isoString);
+    const fromOffset = getTimezoneOffset(fromTz, date);
+    const toOffset = getTimezoneOffset(toTz, date);
+    const diff = toOffset - fromOffset;
+    const converted = new Date(date.getTime() + diff * 60000);
+    return converted.toISOString();
+  } catch {
+    return isoString;
+  }
+}
+
+function convertTimeString(timeStr: string, date: string, fromTz: string, toTz: string): string {
+  if (!timeStr || fromTz === toTz) return timeStr;
+  try {
+    const fullDate = new Date(`${date}T${timeStr}:00`);
+    const fromOffset = getTimezoneOffset(fromTz, fullDate);
+    const toOffset = getTimezoneOffset(toTz, fullDate);
+    const diff = toOffset - fromOffset;
+    const converted = new Date(fullDate.getTime() + diff * 60000);
+    const hours = String(converted.getHours()).padStart(2, '0');
+    const mins = String(converted.getMinutes()).padStart(2, '0');
+    return `${hours}:${mins}`;
+  } catch {
+    return timeStr;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -29,6 +70,16 @@ serve(async (req) => {
       userId = user?.id || null;
     }
 
+    // Helper to get user timezone from profile
+    async function getUserTimezone(uid: string): Promise<string> {
+      const { data } = await supabase
+        .from("app_340b9f1944_profiles")
+        .select("timezone")
+        .eq("id", uid)
+        .single();
+      return data?.timezone || "America/New_York";
+    }
+
     // GET actions
     if (req.method === "GET") {
       switch (action) {
@@ -49,7 +100,13 @@ serve(async (req) => {
             .eq("awo_id", awoId)
             .gte("exception_date", new Date().toISOString().split("T")[0]);
 
-          return jsonResponse({ blocks: blocks || [], exceptions: exceptions || [] });
+          const awoTimezone = await getUserTimezone(awoId);
+
+          return jsonResponse({ 
+            blocks: blocks || [], 
+            exceptions: exceptions || [],
+            awo_timezone: awoTimezone
+          });
         }
 
         case "get-booking-requests": {
@@ -73,24 +130,38 @@ serve(async (req) => {
           const clientIds = [...new Set((data || []).map((r: Record<string, string>) => r.client_id))];
           const { data: profiles } = await supabase
             .from("app_340b9f1944_profiles")
-            .select("id, full_name, email")
+            .select("id, full_name, email, timezone")
             .in("id", clientIds);
 
           const profileMap = new Map((profiles || []).map((p: Record<string, string>) => [p.id, p]));
-          const enriched = (data || []).map((r: Record<string, string>) => ({
-            ...r,
-            client_name: (profileMap.get(r.client_id) as Record<string, string>)?.full_name || "Unknown Client",
-            client_email: (profileMap.get(r.client_id) as Record<string, string>)?.email || "",
-          }));
+          const awoTimezone = await getUserTimezone(userId);
 
-          return jsonResponse({ requests: enriched });
+          const enriched = (data || []).map((r: Record<string, string>) => {
+            const clientProfile = profileMap.get(r.client_id) as Record<string, string> | undefined;
+            const clientTz = r.client_timezone || clientProfile?.timezone || "America/New_York";
+            return {
+              ...r,
+              client_name: clientProfile?.full_name || "Unknown Client",
+              client_email: clientProfile?.email || "",
+              client_timezone: clientTz,
+              // Convert requested_at from client tz to awo tz for display
+              requested_at_awo: convertTimestamp(r.requested_at, clientTz, awoTimezone),
+              awo_timezone: awoTimezone,
+            };
+          });
+
+          return jsonResponse({ requests: enriched, awo_timezone: awoTimezone });
         }
 
         case "get-available-slots": {
           const awoId = url.searchParams.get("awo_id");
           const date = url.searchParams.get("date");
+          const clientTimezone = url.searchParams.get("client_timezone") || "America/New_York";
           if (!awoId || !date) return jsonError("awo_id and date required", 400);
 
+          const awoTimezone = await getUserTimezone(awoId);
+
+          // Convert client date to awo date context
           const targetDate = new Date(date + "T12:00:00Z");
           const dayOfWeek = targetDate.getDay();
 
@@ -100,104 +171,119 @@ serve(async (req) => {
             .select("*")
             .eq("awo_id", awoId)
             .eq("day_of_week", dayOfWeek)
-            .eq("is_active", true);
+            .eq("is_active", true)
+            .eq("is_break", false);
 
-          // Check for exceptions on this date
+          // Check for exceptions
           const { data: exceptions } = await supabase
             .from("app_340b9f1944_availability_exceptions")
             .select("*")
             .eq("awo_id", awoId)
             .eq("exception_date", date);
 
-          // If there's a "not available" exception, return no slots
-          const blockedException = (exceptions || []).find((e: Record<string, boolean>) => !e.is_available);
-          if (blockedException) {
-            return jsonResponse({ slots: [] });
+          const isDayOff = exceptions?.some((e: Record<string, string>) => e.exception_type === "day_off");
+          if (isDayOff || !blocks || blocks.length === 0) {
+            return jsonResponse({ slots: [], awo_timezone: awoTimezone, client_timezone: clientTimezone });
           }
 
-          // Generate slots from blocks
-          const slots: { time: string; available: boolean }[] = [];
-
-          // Check for override exception with custom hours
-          const overrideException = (exceptions || []).find((e: Record<string, boolean>) => e.is_available);
-
-          if (overrideException) {
-            // Use exception hours
-            const exc = overrideException as Record<string, string>;
-            const startMinutes = timeToMinutes(exc.start_time);
-            const endMinutes = timeToMinutes(exc.end_time);
-            for (let m = startMinutes; m < endMinutes; m += 60) {
-              slots.push({ time: minutesToTime(m), available: true });
-            }
-          } else if (blocks && blocks.length > 0) {
-            // Use regular blocks
-            for (const block of blocks) {
-              const startMinutes = timeToMinutes(block.start_time);
-              const endMinutes = timeToMinutes(block.end_time);
-              const duration = block.slot_duration_minutes || 60;
-              for (let m = startMinutes; m < endMinutes; m += duration) {
-                slots.push({ time: minutesToTime(m), available: true });
-              }
-            }
-          }
-
-          // Check existing bookings/requests for conflicts
+          // Get existing bookings/consultations for this date
+          const dayStart = date + "T00:00:00Z";
+          const dayEnd = date + "T23:59:59Z";
+          
           const { data: existingBookings } = await supabase
             .from("app_340b9f1944_booking_requests")
             .select("requested_at, duration_minutes")
             .eq("awo_id", awoId)
             .in("status", ["pending", "accepted"])
-            .gte("requested_at", date + "T00:00:00Z")
-            .lte("requested_at", date + "T23:59:59Z");
+            .gte("requested_at", dayStart)
+            .lte("requested_at", dayEnd);
 
-          if (existingBookings) {
-            for (const booking of existingBookings) {
-              const bookingTime = new Date(booking.requested_at);
-              const bookingTimeStr = bookingTime.toISOString().substring(11, 16);
-              const slot = slots.find(s => s.time === bookingTimeStr);
-              if (slot) slot.available = false;
+          const { data: existingConsultations } = await supabase
+            .from("app_340b9f1944_consultations")
+            .select("scheduled_at, duration_minutes")
+            .eq("awo_id", awoId)
+            .in("status", ["scheduled", "confirmed", "in_progress"])
+            .gte("scheduled_at", dayStart)
+            .lte("scheduled_at", dayEnd);
+
+          // Generate 30-min slots from blocks
+          const slots: { start: string; end: string; start_client: string; end_client: string }[] = [];
+          for (const block of blocks) {
+            const [startH, startM] = block.start_time.split(":").map(Number);
+            const [endH, endM] = block.end_time.split(":").map(Number);
+            let current = startH * 60 + startM;
+            const endMin = endH * 60 + endM;
+
+            while (current + 30 <= endMin) {
+              const slotStart = `${String(Math.floor(current / 60)).padStart(2, "0")}:${String(current % 60).padStart(2, "0")}`;
+              const slotEnd = `${String(Math.floor((current + 30) / 60)).padStart(2, "0")}:${String((current + 30) % 60).padStart(2, "0")}`;
+              const slotStartISO = `${date}T${slotStart}:00`;
+              const slotEndISO = `${date}T${slotEnd}:00`;
+
+              // Check conflicts
+              const hasConflict = [...(existingBookings || []), ...(existingConsultations || [])].some((b: Record<string, unknown>) => {
+                const bStart = new Date(b.requested_at as string || b.scheduled_at as string).getTime();
+                const bEnd = bStart + ((b.duration_minutes as number) || 60) * 60000;
+                const sStart = new Date(slotStartISO).getTime();
+                const sEnd = new Date(slotEndISO).getTime();
+                return sStart < bEnd && sEnd > bStart;
+              });
+
+              if (!hasConflict) {
+                // Convert slot times from Awo timezone to client timezone
+                const startClient = convertTimeString(slotStart, date, awoTimezone, clientTimezone);
+                const endClient = convertTimeString(slotEnd, date, awoTimezone, clientTimezone);
+                slots.push({ 
+                  start: slotStart, 
+                  end: slotEnd,
+                  start_client: startClient,
+                  end_client: endClient
+                });
+              }
+              current += 30;
             }
           }
 
-          return jsonResponse({ slots });
+          return jsonResponse({ 
+            slots, 
+            awo_timezone: awoTimezone, 
+            client_timezone: clientTimezone 
+          });
         }
 
-        case "get-calendar-events": {
+        case "get-calendar": {
           if (!userId) return jsonError("Unauthorized", 401);
-          const startDate = url.searchParams.get("start");
-          const endDate = url.searchParams.get("end");
-          if (!startDate || !endDate) return jsonError("start and end required", 400);
+          const start = url.searchParams.get("start");
+          const end = url.searchParams.get("end");
 
-          // Get accepted bookings in range
-          const { data: bookings } = await supabase
-            .from("app_340b9f1944_booking_requests")
-            .select("*")
-            .eq("awo_id", userId)
-            .eq("status", "accepted")
-            .gte("requested_at", startDate)
-            .lte("requested_at", endDate);
-
-          // Get consultations in range
           const { data: consultations } = await supabase
             .from("app_340b9f1944_consultations")
             .select("*")
-            .eq("practitioner_id", userId)
-            .gte("scheduled_at", startDate)
-            .lte("scheduled_at", endDate);
-
-          // Get exceptions in range
-          const { data: exceptions } = await supabase
-            .from("app_340b9f1944_availability_exceptions")
-            .select("*")
             .eq("awo_id", userId)
-            .gte("exception_date", startDate.split("T")[0])
-            .lte("exception_date", endDate.split("T")[0]);
+            .gte("scheduled_at", start || new Date().toISOString())
+            .lte("scheduled_at", end || new Date(Date.now() + 90 * 86400000).toISOString())
+            .order("scheduled_at");
 
-          return jsonResponse({
+          const { data: bookings } = await supabase
+            .from("app_340b9f1944_bookings")
+            .select("id, scheduled_at, duration_minutes, status, service_type")
+            .eq("practitioner_id", userId)
+            .gte("scheduled_at", start || new Date().toISOString())
+            .lte("scheduled_at", end || new Date(Date.now() + 90 * 86400000).toISOString());
+
+          const awoTimezone = await getUserTimezone(userId);
+
+          return jsonResponse({ 
+            consultations: consultations || [], 
             bookings: bookings || [],
-            consultations: consultations || [],
-            exceptions: exceptions || [],
+            awo_timezone: awoTimezone
           });
+        }
+
+        case "get-timezone": {
+          if (!userId) return jsonError("Unauthorized", 401);
+          const timezone = await getUserTimezone(userId);
+          return jsonResponse({ timezone });
         }
 
         default:
@@ -213,164 +299,223 @@ serve(async (req) => {
         case "save-availability": {
           if (!userId) return jsonError("Unauthorized", 401);
           const { blocks } = body;
-          if (!blocks || !Array.isArray(blocks)) return jsonError("blocks array required", 400);
+          const awoTimezone = await getUserTimezone(userId);
 
-          // Deactivate all existing blocks for this user
+          // Deactivate existing blocks
           await supabase
             .from("app_340b9f1944_availability_blocks")
-            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .update({ is_active: false })
             .eq("awo_id", userId);
 
-          // Insert new blocks
-          const newBlocks = blocks.map((b: Record<string, unknown>) => ({
-            awo_id: userId,
-            day_of_week: b.day_of_week,
-            start_time: b.start_time,
-            end_time: b.end_time,
-            slot_duration_minutes: b.slot_duration_minutes || 60,
-            is_active: true,
-            label: b.label || null,
-          }));
+          // Insert new blocks with timezone
+          if (blocks && blocks.length > 0) {
+            const newBlocks = blocks.map((b: Record<string, unknown>) => ({
+              awo_id: userId,
+              day_of_week: b.day_of_week,
+              start_time: b.start_time,
+              end_time: b.end_time,
+              is_break: b.is_break || false,
+              is_active: true,
+              timezone: awoTimezone,
+            }));
 
-          if (newBlocks.length > 0) {
             const { error } = await supabase
               .from("app_340b9f1944_availability_blocks")
               .insert(newBlocks);
             if (error) return jsonError(error.message, 500);
           }
 
-          return jsonResponse({ success: true, count: newBlocks.length });
+          return jsonResponse({ success: true });
         }
 
         case "save-exception": {
           if (!userId) return jsonError("Unauthorized", 401);
-          const { exception_date, is_available, start_time, end_time, reason } = body;
-          if (!exception_date) return jsonError("exception_date required", 400);
+          const awoTimezone = await getUserTimezone(userId);
 
-          // Upsert exception for this date
-          const { data: existing } = await supabase
+          const { error } = await supabase
             .from("app_340b9f1944_availability_exceptions")
-            .select("id")
-            .eq("awo_id", userId)
-            .eq("exception_date", exception_date)
-            .single();
-
-          if (existing) {
-            const { error } = await supabase
-              .from("app_340b9f1944_availability_exceptions")
-              .update({
-                is_available: is_available ?? false,
-                start_time: start_time || null,
-                end_time: end_time || null,
-                reason: reason || null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", existing.id);
-            if (error) return jsonError(error.message, 500);
-          } else {
-            const { error } = await supabase
-              .from("app_340b9f1944_availability_exceptions")
-              .insert({
-                awo_id: userId,
-                exception_date,
-                is_available: is_available ?? false,
-                start_time: start_time || null,
-                end_time: end_time || null,
-                reason: reason || null,
-              });
-            if (error) return jsonError(error.message, 500);
-          }
-
+            .insert({
+              awo_id: userId,
+              exception_date: body.exception_date,
+              exception_type: body.exception_type,
+              start_time: body.start_time || null,
+              end_time: body.end_time || null,
+              reason: body.reason || null,
+              timezone: awoTimezone,
+            });
+          if (error) return jsonError(error.message, 500);
           return jsonResponse({ success: true });
         }
 
         case "delete-exception": {
           if (!userId) return jsonError("Unauthorized", 401);
-          const { exception_id } = body;
-          if (!exception_id) return jsonError("exception_id required", 400);
-
           const { error } = await supabase
             .from("app_340b9f1944_availability_exceptions")
             .delete()
-            .eq("id", exception_id)
+            .eq("id", body.exception_id)
             .eq("awo_id", userId);
           if (error) return jsonError(error.message, 500);
-
           return jsonResponse({ success: true });
         }
 
         case "create-booking-request": {
           if (!userId) return jsonError("Unauthorized", 401);
-          const { awo_id, requested_at, duration_minutes, service_type, message } = body;
-          if (!awo_id || !requested_at) return jsonError("awo_id and requested_at required", 400);
+          const clientTimezone = body.client_timezone || await getUserTimezone(userId);
+          const awoTimezone = await getUserTimezone(body.awo_id);
 
-          const { data, error } = await supabase
-            .from("app_340b9f1944_booking_requests")
-            .insert({
-              awo_id,
-              client_id: userId,
-              requested_at,
-              duration_minutes: duration_minutes || 60,
-              service_type: service_type || "ifa_reading",
-              message: message || null,
-              status: "pending",
-            })
-            .select()
-            .single();
-
-          if (error) return jsonError(error.message, 500);
-          return jsonResponse({ success: true, request: data });
-        }
-
-        case "respond-to-request": {
-          if (!userId) return jsonError("Unauthorized", 401);
-          const { request_id, response_action, awo_response, proposed_at } = body;
-          if (!request_id || !response_action) return jsonError("request_id and response_action required", 400);
-
-          const validActions = ["accepted", "declined", "proposed"];
-          if (!validActions.includes(response_action)) return jsonError("Invalid action", 400);
-
-          const updateData: Record<string, unknown> = {
-            status: response_action,
-            awo_response: awo_response || null,
-            updated_at: new Date().toISOString(),
-          };
-
-          if (response_action === "proposed" && proposed_at) {
-            updateData.proposed_at = proposed_at;
-          }
-
-          // If accepted, also create a consultation
-          if (response_action === "accepted") {
-            const { data: request } = await supabase
-              .from("app_340b9f1944_booking_requests")
-              .select("*")
-              .eq("id", request_id)
-              .eq("awo_id", userId)
-              .single();
-
-            if (request) {
-              await supabase
-                .from("app_340b9f1944_consultations")
-                .insert({
-                  practitioner_id: userId,
-                  client_id: request.client_id,
-                  scheduled_at: request.requested_at,
-                  duration_minutes: request.duration_minutes,
-                  status: "scheduled",
-                  service_type: request.service_type,
-                  meeting_url: `https://meet.ifamarket.com/${Date.now()}`,
-                });
-            }
-          }
+          // Convert client's requested time to UTC for storage
+          const requestedAtUTC = body.requested_at;
 
           const { error } = await supabase
             .from("app_340b9f1944_booking_requests")
-            .update(updateData)
-            .eq("id", request_id)
-            .eq("awo_id", userId);
-
+            .insert({
+              client_id: userId,
+              awo_id: body.awo_id,
+              requested_at: requestedAtUTC,
+              duration_minutes: body.duration_minutes || 60,
+              service_type: body.service_type || "consultation",
+              status: "pending",
+              client_message: body.message || null,
+              client_timezone: clientTimezone,
+            });
           if (error) return jsonError(error.message, 500);
+          return jsonResponse({ success: true, awo_timezone: awoTimezone });
+        }
+
+        case "accept-booking": {
+          if (!userId) return jsonError("Unauthorized", 401);
+          const { request_id } = body;
+
+          // Get the request
+          const { data: request } = await supabase
+            .from("app_340b9f1944_booking_requests")
+            .select("*")
+            .eq("id", request_id)
+            .eq("awo_id", userId)
+            .single();
+
+          if (!request) return jsonError("Request not found", 404);
+
+          // Update status
+          await supabase
+            .from("app_340b9f1944_booking_requests")
+            .update({ status: "accepted", awo_response: "Booking accepted" })
+            .eq("id", request_id);
+
+          // Create consultation
+          const { error } = await supabase
+            .from("app_340b9f1944_consultations")
+            .insert({
+              awo_id: userId,
+              client_id: request.client_id,
+              client_name: request.client_name || "Client",
+              consultation_type: request.service_type || "consultation",
+              scheduled_at: request.requested_at,
+              duration_minutes: request.duration_minutes || 60,
+              status: "scheduled",
+              booking_request_id: request_id,
+            });
+          if (error) return jsonError(error.message, 500);
+          return jsonResponse({ success: true });
+        }
+
+        case "decline-booking": {
+          if (!userId) return jsonError("Unauthorized", 401);
+          const { error } = await supabase
+            .from("app_340b9f1944_booking_requests")
+            .update({ status: "declined", awo_response: body.reason || "Declined" })
+            .eq("id", body.request_id)
+            .eq("awo_id", userId);
+          if (error) return jsonError(error.message, 500);
+          return jsonResponse({ success: true });
+        }
+
+        case "propose-new-time": {
+          if (!userId) return jsonError("Unauthorized", 401);
+          const awoTimezone = await getUserTimezone(userId);
+
+          // Get the booking request to find client timezone
+          const { data: request } = await supabase
+            .from("app_340b9f1944_booking_requests")
+            .select("client_id, client_timezone")
+            .eq("id", body.request_id)
+            .eq("awo_id", userId)
+            .single();
+
+          const clientTz = request?.client_timezone || "America/New_York";
+
+          // proposed_time comes in Awo's timezone, convert to UTC for storage
+          // but also store the client-facing version
+          const proposedTimeClientTz = convertTimestamp(body.proposed_time, awoTimezone, clientTz);
+
+          const { error } = await supabase
+            .from("app_340b9f1944_booking_requests")
+            .update({ 
+              status: "proposed_new_time", 
+              proposed_time: body.proposed_time,
+              awo_response: body.message || `New time proposed (${clientTz}: ${proposedTimeClientTz})`,
+            })
+            .eq("id", body.request_id)
+            .eq("awo_id", userId);
+          if (error) return jsonError(error.message, 500);
+          return jsonResponse({ success: true, proposed_time_client: proposedTimeClientTz });
+        }
+
+        case "update-timezone": {
+          if (!userId) return jsonError("Unauthorized", 401);
+          const { timezone } = body;
+          if (!timezone) return jsonError("timezone required", 400);
+
+          const { error } = await supabase
+            .from("app_340b9f1944_profiles")
+            .update({ timezone })
+            .eq("id", userId);
+          if (error) return jsonError(error.message, 500);
+          return jsonResponse({ success: true, timezone });
+        }
+
+        case "reschedule-event": {
+          if (!userId) return jsonError("Unauthorized", 401);
+          const { event_id, event_type, new_start, new_end } = body;
+
+          if (event_type === "consultation") {
+            const { error } = await supabase
+              .from("app_340b9f1944_consultations")
+              .update({ 
+                scheduled_at: new_start,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", event_id)
+              .eq("awo_id", userId);
+            if (error) return jsonError(error.message, 500);
+          } else if (event_type === "booking") {
+            const { error } = await supabase
+              .from("app_340b9f1944_bookings")
+              .update({ 
+                scheduled_at: new_start,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", event_id)
+              .eq("practitioner_id", userId);
+            if (error) return jsonError(error.message, 500);
+          }
+
+          return jsonResponse({ success: true });
+        }
+
+        case "update-availability-block": {
+          if (!userId) return jsonError("Unauthorized", 401);
+          const { block_id, day_of_week, start_time, end_time } = body;
+
+          if (block_id) {
+            const { error } = await supabase
+              .from("app_340b9f1944_availability_blocks")
+              .update({ day_of_week, start_time, end_time, updated_at: new Date().toISOString() })
+              .eq("id", block_id)
+              .eq("awo_id", userId);
+            if (error) return jsonError(error.message, 500);
+          }
+
           return jsonResponse({ success: true });
         }
 
@@ -392,20 +537,9 @@ function jsonResponse(data: unknown, status = 200) {
   });
 }
 
-function jsonError(message: string, status: number) {
+function jsonError(message: string, status = 400) {
   return new Response(JSON.stringify({ error: message }), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTime(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
 }

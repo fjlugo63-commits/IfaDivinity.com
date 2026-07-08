@@ -9,6 +9,12 @@
     "postinstall": "echo 'Dependencies installed successfully'"
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.21",
+    "@fullcalendar/daygrid": "^6.1.21",
+    "@fullcalendar/interaction": "^6.1.21",
+    "@fullcalendar/list": "^6.1.21",
+    "@fullcalendar/react": "^6.1.21",
+    "@fullcalendar/timegrid": "^6.1.21",
     "@hookform/resolvers": "^3.9.0",
     "@metagptx/vite-plugin-source-locator": "latest",
     "@metagptx/web-sdk": "latest",
@@ -47,6 +53,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
+    "date-fns-tz": "^3.2.0",
     "debug": "^4.4.3",
     "embla-carousel-react": "^8.3.0",
     "input-otp": "^1.2.4",
