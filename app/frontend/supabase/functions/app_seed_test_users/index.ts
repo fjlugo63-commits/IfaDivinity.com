@@ -149,8 +149,23 @@ serve(async (req) => {
         });
 
         if (createResult.error) {
-          const errMsg = createResult.error.message || "";
-          if (errMsg.includes("already") || errMsg.includes("exists") || errMsg.includes("registered") || errMsg.includes("duplicate") || errMsg.includes("unique")) {
+          // Extract error message - handle various error shapes
+          let errMsg = "";
+          const rawErr = createResult.error;
+          if (typeof rawErr === "string") {
+            errMsg = rawErr;
+          } else if (rawErr.message && typeof rawErr.message === "string") {
+            errMsg = rawErr.message;
+          } else if (rawErr.msg && typeof rawErr.msg === "string") {
+            errMsg = rawErr.msg;
+          } else {
+            errMsg = JSON.stringify(rawErr);
+          }
+
+          const errLower = errMsg.toLowerCase();
+          const isExistsError = errLower.includes("already") || errLower.includes("exists") || errLower.includes("registered") || errLower.includes("duplicate") || errLower.includes("unique");
+
+          if (isExistsError) {
             // User exists, find them
             const listResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
             if (!listResult.error && listResult.data?.users) {
@@ -158,13 +173,11 @@ serve(async (req) => {
               if (existingUser) {
                 userId = existingUser.id;
                 isExisting = true;
-                // Update password and confirm email
                 await supabase.auth.admin.updateUserById(userId, { password: defaultPassword, email_confirm: true });
               }
             }
 
             if (!userId) {
-              // Try profiles table as fallback
               const { data: profileData } = await supabase
                 .from("app_340b9f1944_profiles")
                 .select("id")
@@ -181,8 +194,52 @@ serve(async (req) => {
               continue;
             }
           } else {
-            results.push({ email: account.email, role: account.role, status: "error", error: `Auth creation failed: ${errMsg}` });
-            continue;
+            // SDK createUser failed with non-exists error - try direct REST API
+            try {
+              const restResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${supabaseServiceKey}`,
+                  "apikey": supabaseServiceKey,
+                },
+                body: JSON.stringify({
+                  email: account.email,
+                  password: defaultPassword,
+                  email_confirm: true,
+                  user_metadata: { full_name: account.full_name, role: account.role },
+                }),
+              });
+
+              if (restResponse.ok) {
+                const restData = await restResponse.json();
+                userId = restData.id;
+              } else {
+                const restText = await restResponse.text();
+                // Check if it's an "already exists" error from REST
+                const restLower = restText.toLowerCase();
+                if (restLower.includes("already") || restLower.includes("exists") || restLower.includes("duplicate") || restLower.includes("unique")) {
+                  // User exists - find them
+                  const listResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+                  if (!listResult.error && listResult.data?.users) {
+                    const existingUser = listResult.data.users.find((u) => u.email === account.email);
+                    if (existingUser) {
+                      userId = existingUser.id;
+                      isExisting = true;
+                      await supabase.auth.admin.updateUserById(userId, { password: defaultPassword, email_confirm: true });
+                    }
+                  }
+                }
+
+                if (!userId) {
+                  results.push({ email: account.email, role: account.role, status: "error", error: `Auth creation failed (REST ${restResponse.status}): ${restText}` });
+                  continue;
+                }
+              }
+            } catch (fetchErr) {
+              results.push({ email: account.email, role: account.role, status: "error", error: `Auth creation failed. SDK error: ${errMsg}. Fetch error: ${fetchErr.message}` });
+              continue;
+            }
           }
         } else {
           userId = createResult.data.user.id;
@@ -220,7 +277,6 @@ serve(async (req) => {
         // Step 3: Create role-specific records
         if (account.role === "awo" || account.role === "house_admin") {
           // Get or create a test house
-          // ifa_houses columns: id, name, description, owner_id (NOT NULL), subscription_tier, created_at, updated_at
           let houseId = null;
 
           const { data: houseData } = await supabase
@@ -251,7 +307,6 @@ serve(async (req) => {
           }
 
           if (houseId) {
-            // house_practitioners columns: id, house_id, practitioner_id, role, is_active, joined_at
             const { data: existingPrac } = await supabase
               .from("app_340b9f1944_house_practitioners")
               .select("id")
@@ -286,10 +341,8 @@ serve(async (req) => {
         }
 
         if (account.role === "client") {
-          // clients columns: id, user_id, awo_id (NOT NULL), name (NOT NULL), email, phone, status, timezone, is_test, created_at, updated_at
           let awoId = null;
 
-          // Find an existing awo profile
           const { data: awoProfile } = await supabase
             .from("app_340b9f1944_profiles")
             .select("id")
@@ -300,7 +353,6 @@ serve(async (req) => {
           awoId = awoProfile?.id || null;
 
           if (!awoId) {
-            // Skip client record if no awo exists yet
             results.push({
               email: account.email,
               role: account.role,
@@ -311,7 +363,6 @@ serve(async (req) => {
             continue;
           }
 
-          // Check if client record already exists
           const { data: existingClient } = await supabase
             .from("app_340b9f1944_clients")
             .select("id")
