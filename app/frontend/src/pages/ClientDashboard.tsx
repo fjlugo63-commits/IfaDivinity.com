@@ -370,7 +370,7 @@ export default function ClientDashboard() {
               <Button
                 variant="outline"
                 className="h-auto py-4 flex-col gap-2 rounded-xl border-purple-200 hover:bg-purple-50 hover:border-purple-300"
-                onClick={() => toast.info('Profile update coming soon')}
+                onClick={() => navigate('/client/profile')}
               >
                 <User className="h-5 w-5 text-purple-600" />
                 <span className="text-xs font-medium">Update Profile</span>

@@ -1,0 +1,125 @@
+Build a new feature module called **Client Portal – CP‑6: Profile Management**.  
+This module must allow clients to view and update their personal information, manage timezone settings, and maintain account integrity.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Client Profile — Functional Requirements
+
+#### 1.1 Profile Viewer
+Display the client’s current profile information:
+- Name
+- Email
+- Phone
+- Time zone
+- Account creation date
+
+#### 1.2 Profile Editing
+Allow client to update:
+- Name
+- Phone
+- Time zone
+
+Email update rules:
+- Email must be unique.
+- Changing email requires sending a new magic link.
+- After confirmation, update session.
+
+#### 1.3 Time Zone Management
+- Allow client to select from a list of supported time zones.
+- Convert all consultation and booking times to selected timezone.
+- Save timezone in `clients` table.
+
+#### 1.4 Security & Account Integrity
+- Provide “Re-send login link” option.
+- Provide “Logout” button.
+- Provide “Delete Account” (Phase 2 stub — no deletion logic yet).
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+Profile module includes:
+- Profile Viewer
+- Profile Edit Form
+- Time Zone Selector
+- Security Options
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Client Portal styling (soft palette, rounded cards).
+- Form validation messages:
+  - Required fields
+  - Invalid phone format
+  - Email already in use
+
+#### 2.3 UX Behavior
+- Smooth transitions between view and edit mode.
+- Toast notifications for:
+  - Profile updated
+  - Email change initiated
+  - Time zone updated
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- GET /client/profile
+- PUT /client/profile
+- POST /client/profile/change-email
+- POST /client/profile/resend-login-link
+
+#### 3.2 Data Sources
+- clients table
+
+#### 3.3 Access Control
+- Client can only view and update their own profile.
+- Email change must verify ownership via magic link.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with CP‑1 Dashboard
+- Dashboard must display updated name and timezone.
+
+#### 4.2 Integration with CP‑2 Booking Flow
+- Booking times must reflect updated timezone.
+
+#### 4.3 Integration with CP‑3 Payments
+- Receipts and payment timestamps must display in client timezone.
+
+#### 4.4 Integration with CP‑4 Consultation History
+- Consultation timestamps must reflect updated timezone.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Profile load
+- Profile update
+- Time zone update
+- Email change initiation
+
+#### 5.2 Integration Tests
+- Timezone propagation across all modules
+- Email uniqueness enforcement
+- Magic link flow for email change
+
+#### 5.3 UI Tests
+- Form validation
+- Responsive layout
+- Edit/view transitions
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Client Profile module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated with CP‑1 through CP‑4.
+- Ready for CP‑7 (Navigation + Integration).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare for CP‑7 (Navigation + Integration).

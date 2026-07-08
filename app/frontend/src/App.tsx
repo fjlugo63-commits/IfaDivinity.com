@@ -35,6 +35,7 @@ const ClientAuthCallback = lazy(() => import('./pages/ClientAuthCallback'));
 const ClientBookings = lazy(() => import('./pages/ClientBookings'));
 const ClientPayments = lazy(() => import('./pages/ClientPayments'));
 const ClientMessages = lazy(() => import('./pages/ClientMessages'));
+const ClientProfilePage = lazy(() => import('./pages/ClientProfile'));
 const AwoMessages = lazy(() => import('./pages/AwoMessages'));
 
 const queryClient = new QueryClient({
@@ -82,6 +83,7 @@ const AppRoutes = () => (
       <Route path="/client/bookings" element={<ClientBookings />} />
       <Route path="/client/payments" element={<ClientPayments />} />
       <Route path="/client/messages" element={<ClientMessages />} />
+      <Route path="/client/profile" element={<ClientProfilePage />} />
       <Route path="/awo/messages" element={<AwoMessages />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
