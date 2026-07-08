@@ -19,6 +19,7 @@ import SuperAdminSetup from './pages/SuperAdminSetup';
 import AwoDashboard from './pages/AwoDashboard';
 import ConsultationWorkspace from './pages/ConsultationWorkspace';
 import ConsultationHistory from './pages/ConsultationHistory';
+import AwoScheduling from './pages/AwoScheduling';
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const AppRoutes = () => (
     <Route path="/bookings" element={<Bookings />} />
     <Route path="/seller/dashboard" element={<SellerDashboard />} />
     <Route path="/awo/dashboard" element={<AwoDashboard />} />
+    <Route path="/awo/schedule" element={<AwoScheduling />} />
     <Route path="/consultation/:id" element={<ConsultationWorkspace />} />
     <Route path="/awo/history" element={<ConsultationHistory />} />
     <Route path="/admin" element={<Admin />} />

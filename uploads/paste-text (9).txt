@@ -1,0 +1,162 @@
+Build a new feature module called **Scheduling** inside the Awo Portal.  
+This module must allow Awos to manage their availability, view their calendar, accept or decline bookings, and integrate with the Client Portal booking flow.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Scheduling — Functional Requirements
+
+#### 1.1 Awo Availability Management
+- Allow Awo to set weekly recurring availability:
+  - Days of the week
+  - Start/end times
+  - Break periods
+- Allow Awo to set one-time exceptions:
+  - Days off
+  - Extended hours
+  - Special availability windows
+- Store availability in a structured format:
+  - availability_blocks table
+  - availability_exceptions table
+
+#### 1.2 Calendar View (Awo)
+- Provide a full calendar interface:
+  - Monthly view
+  - Weekly view
+  - Daily view
+- Show:
+  - Confirmed consultations
+  - Pending consultations
+  - Blocked times
+  - Availability windows
+- Allow Awo to click any consultation to open the Consultation Workspace.
+
+#### 1.3 Booking Management
+- Display all incoming booking requests from clients.
+- Allow Awo to:
+  - Accept booking
+  - Decline booking
+  - Propose new time
+- When accepted:
+  - Consultation record is created
+  - Client receives confirmation (integration stub)
+- When declined:
+  - Client receives decline notification (integration stub)
+
+#### 1.4 Client Portal Integration
+- Scheduling module must expose availability to the Client Portal.
+- Client Portal must only show:
+  - Available time slots
+  - Awo-specific availability
+  - House-level availability (if entitlement allows)
+- When a client selects a time:
+  - Create a pending booking request
+  - Notify Awo (Notifications module)
+
+#### 1.5 Time Zone Handling
+- All scheduling must support:
+  - Awo time zone
+  - Client time zone
+- Convert times automatically based on user profile.
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Main Scheduling page includes:
+  - Calendar view (primary)
+  - Availability editor (secondary)
+  - Booking requests panel (sidebar)
+- Calendar must support drag-and-drop for:
+  - Moving consultations
+  - Adjusting availability blocks
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Calendar must visually match:
+  - Awo Dashboard
+  - Consultation Workspace
+
+#### 2.3 UX Behavior
+- Smooth transitions between calendar views.
+- Real-time updates when availability changes.
+- Toast notifications for:
+  - Booking accepted
+  - Booking declined
+  - Availability saved
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- GET /awo/scheduling/availability
+- POST /awo/scheduling/availability
+- PUT /awo/scheduling/availability
+- GET /awo/scheduling/calendar
+- GET /awo/scheduling/bookings
+- POST /awo/scheduling/bookings/{id}/accept
+- POST /awo/scheduling/bookings/{id}/decline
+- POST /awo/scheduling/bookings/{id}/propose-new-time
+
+#### 3.2 Data Sources
+- availability_blocks table
+- availability_exceptions table
+- consultations table
+- booking_requests table
+- notifications table
+
+#### 3.3 Access Control
+- Only Awo role can manage availability.
+- Only Awo role can accept/decline bookings.
+- Client Portal can only read availability and create booking requests.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with Awo Dashboard
+- “View Today’s Schedule” opens Scheduling module.
+- Dashboard must show next upcoming consultation from Scheduling.
+
+#### 4.2 Integration with Consultation Workspace
+- Clicking a consultation in the calendar opens the Consultation Workspace.
+
+#### 4.3 Integration with Notifications
+- Booking requests generate notifications.
+- Accepted/declined bookings update notification states.
+
+#### 4.4 Integration with Client Portal
+- Availability must be exposed via API.
+- Booking requests must flow into Scheduling.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Availability blocks save correctly.
+- Exceptions override recurring availability.
+- Booking acceptance/decline logic works.
+- Time zone conversions are correct.
+
+#### 5.2 Integration Tests
+- Calendar loads correct consultations.
+- Booking requests appear in Scheduling.
+- Accepting a booking creates a consultation record.
+
+#### 5.3 UI Tests
+- Calendar drag-and-drop works.
+- Availability editor behaves correctly.
+- Responsive layout works on desktop/tablet/mobile.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Scheduling module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated with Awo Dashboard, Consultation Workspace, Notifications, and Client Portal.
+- Ready for Phase Group 3 (Smart Opele Integration).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare for Phase Group 3.

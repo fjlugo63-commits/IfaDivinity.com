@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Calendar, Clock, Video, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, Clock, Video, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,23 +14,51 @@ import { supabase, TABLES, DBProfile } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 interface TimeSlot {
-  date: string;
   time: string;
   available: boolean;
 }
 
-function generateTimeSlots(): TimeSlot[] {
-  const slots: TimeSlot[] = [];
-  const today = new Date();
-  for (let d = 1; d <= 7; d++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + d);
-    const dateStr = date.toISOString().split('T')[0];
-    for (const time of ['09:00', '11:00', '14:00', '16:00']) {
-      slots.push({ date: dateStr, time, available: Math.random() > 0.3 });
-    }
+// Helper to call the scheduling edge function
+async function callSchedulingAPI(action: string, params?: Record<string, string>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const queryParams = new URLSearchParams({ action, ...params });
+  const url = `${supabaseUrl}/functions/v1/app_awo_scheduling?${queryParams}`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+  };
+  if (session) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
   }
-  return slots;
+
+  const res = await fetch(url, { method: 'GET', headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'API request failed');
+  return data;
+}
+
+async function createBookingRequest(body: Record<string, unknown>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated');
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const url = `${supabaseUrl}/functions/v1/app_awo_scheduling?action=create-booking-request`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create booking request');
+  return data;
 }
 
 export default function BookingsPage() {
@@ -37,12 +67,13 @@ export default function BookingsPage() {
   const [selectedPractitioner, setSelectedPractitioner] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
-  const [timeSlots] = useState<TimeSlot[]>(generateTimeSlots());
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [clientMessage, setClientMessage] = useState('');
 
   // Demo practitioners shown when no real seller profiles exist
-  // Using valid UUID format so DB inserts don't fail on type mismatch
   const demoPractitioners: DBProfile[] = [
     {
       id: '00000000-0000-0000-0000-000000000001',
@@ -95,17 +126,65 @@ export default function BookingsPage() {
       if (!error && data && data.length > 0) {
         setPractitioners(data);
       } else {
-        // Use demo practitioners when none exist in DB
         setPractitioners(demoPractitioners);
       }
     } catch {
-      // Use demo practitioners on error
       setPractitioners(demoPractitioners);
     }
   }
 
-  const availableDates = [...new Set(timeSlots.filter((s) => s.available).map((s) => s.date))];
-  const availableTimes = timeSlots.filter((s) => s.date === selectedDate && s.available);
+  // Fetch available slots when practitioner + date selected
+  const fetchAvailableSlots = useCallback(async (awoId: string, date: string) => {
+    // For demo practitioners, generate random slots
+    if (awoId.startsWith('00000000-0000-0000-0000-')) {
+      const slots: TimeSlot[] = [];
+      for (const time of ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00']) {
+        slots.push({ time, available: Math.random() > 0.3 });
+      }
+      setTimeSlots(slots);
+      return;
+    }
+
+    setLoadingSlots(true);
+    try {
+      const data = await callSchedulingAPI('get-available-slots', { awo_id: awoId, date });
+      setTimeSlots(data.slots || []);
+    } catch (err) {
+      console.error('Failed to fetch slots:', err);
+      // Fallback to default slots
+      const slots: TimeSlot[] = [];
+      for (const time of ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00']) {
+        slots.push({ time, available: true });
+      }
+      setTimeSlots(slots);
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedPractitioner && selectedDate) {
+      fetchAvailableSlots(selectedPractitioner, selectedDate);
+      setSelectedTime('');
+    }
+  }, [selectedPractitioner, selectedDate, fetchAvailableSlots]);
+
+  // Generate next 7 available dates
+  const getAvailableDates = () => {
+    const dates: string[] = [];
+    const today = new Date();
+    for (let d = 1; d <= 14; d++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + d);
+      // Skip Sundays for demo practitioners
+      if (selectedPractitioner.startsWith('00000000-0000-0000-0000-') && date.getDay() === 0) continue;
+      dates.push(date.toISOString().split('T')[0]);
+      if (dates.length >= 7) break;
+    }
+    return dates;
+  };
+
+  const availableDates = getAvailableDates();
 
   async function handleBooking() {
     if (!user) {
@@ -120,44 +199,49 @@ export default function BookingsPage() {
     setLoading(true);
     try {
       const scheduledAt = new Date(`${selectedDate}T${selectedTime}:00`).toISOString();
-      // Use null for practitioner_id if it's a demo practitioner (not a real auth user)
       const isDemoPractitioner = selectedPractitioner.startsWith('00000000-0000-0000-0000-');
-      const practitionerId = isDemoPractitioner ? null : selectedPractitioner;
 
-      // Use edge function to bypass RLS - runs with service role
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No active session. Please sign in again.');
-      }
+      if (isDemoPractitioner) {
+        // For demo practitioners, use the old direct booking via edge function
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) throw new Error('No active session. Please sign in again.');
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/app_book_consultation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          practitioner_id: practitionerId,
-          service_type: 'ifa_reading',
-          scheduled_at: scheduledAt,
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/app_book_consultation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            practitioner_id: null,
+            service_type: 'ifa_reading',
+            scheduled_at: scheduledAt,
+            duration_minutes: 60,
+            price: 75.00,
+            meeting_url: `https://meet.ifamarket.com/${Date.now()}`,
+            notes: clientMessage || null,
+          }),
+        });
+
+        const result = await response.json();
+        if (!response.ok || result.error) {
+          throw new Error(result.error || result.details || 'Booking failed');
+        }
+      } else {
+        // For real practitioners, create a booking request through the scheduling system
+        await createBookingRequest({
+          awo_id: selectedPractitioner,
+          requested_at: scheduledAt,
           duration_minutes: 60,
-          price: 75.00,
-          meeting_url: `https://meet.ifamarket.com/${Date.now()}`,
-          notes: null,
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (!response.ok || result.error) {
-        throw new Error(result.error || result.details || 'Booking failed');
+          service_type: 'ifa_reading',
+          message: clientMessage || null,
+        });
       }
 
       setBookingConfirmed(true);
-      toast.success('Reading booked successfully!');
+      toast.success(isDemoPractitioner ? 'Reading booked successfully!' : 'Booking request sent! The practitioner will confirm shortly.');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       console.error('Booking failed:', message);
@@ -169,6 +253,8 @@ export default function BookingsPage() {
 
   if (bookingConfirmed) {
     const practitioner = practitioners.find((p) => p.id === selectedPractitioner);
+    const isDemoPractitioner = selectedPractitioner.startsWith('00000000-0000-0000-0000-');
+
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -176,21 +262,40 @@ export default function BookingsPage() {
           <Card className="max-w-md w-full text-center">
             <CardContent className="p-8 space-y-4">
               <CheckCircle className="h-16 w-16 mx-auto text-green-600" />
-              <h2 className="text-2xl font-heading font-bold">Booking Confirmed!</h2>
+              <h2 className="text-2xl font-heading font-bold">
+                {isDemoPractitioner ? 'Booking Confirmed!' : 'Request Sent!'}
+              </h2>
               <p className="text-muted-foreground">
-                Your reading with{' '}
-                <strong>{practitioner?.full_name || 'Practitioner'}</strong>{' '}
-                is scheduled for{' '}
-                <strong>{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</strong>{' '}
-                at <strong>{selectedTime}</strong>.
+                {isDemoPractitioner ? (
+                  <>
+                    Your reading with{' '}
+                    <strong>{practitioner?.full_name || 'Practitioner'}</strong>{' '}
+                    is scheduled for{' '}
+                    <strong>{new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</strong>{' '}
+                    at <strong>{selectedTime}</strong>.
+                  </>
+                ) : (
+                  <>
+                    Your booking request with{' '}
+                    <strong>{practitioner?.full_name || 'Practitioner'}</strong>{' '}
+                    for{' '}
+                    <strong>{new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</strong>{' '}
+                    at <strong>{selectedTime}</strong> has been sent.
+                    You'll receive a notification once the practitioner confirms.
+                  </>
+                )}
               </p>
               <div className="bg-muted p-4 rounded-lg">
                 <div className="flex items-center gap-2 justify-center text-sm">
                   <Video className="h-4 w-4" />
-                  <span>Meeting link will be sent to your email</span>
+                  <span>
+                    {isDemoPractitioner
+                      ? 'Meeting link will be sent to your email'
+                      : 'Meeting details will be shared after confirmation'}
+                  </span>
                 </div>
               </div>
-              <Button onClick={() => setBookingConfirmed(false)} variant="outline">
+              <Button onClick={() => { setBookingConfirmed(false); setSelectedTime(''); setSelectedDate(''); }} variant="outline">
                 Book Another Reading
               </Button>
             </CardContent>
@@ -227,7 +332,7 @@ export default function BookingsPage() {
                     <Card
                       key={p.id}
                       className={`cursor-pointer transition-all ${selectedPractitioner === p.id ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
-                      onClick={() => setSelectedPractitioner(p.id)}
+                      onClick={() => { setSelectedPractitioner(p.id); setSelectedDate(''); setSelectedTime(''); }}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
@@ -243,7 +348,7 @@ export default function BookingsPage() {
                               <h3 className="font-medium">{p.full_name || p.email}</h3>
                               <Badge variant="secondary" className="text-xs">Verified</Badge>
                             </div>
-                            {p.bio && <p className="text-sm text-muted-foreground mt-1">{p.bio}</p>}
+                            {p.bio && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.bio}</p>}
                           </div>
                         </div>
                       </CardContent>
@@ -265,14 +370,18 @@ export default function BookingsPage() {
                     <label className="text-sm font-medium flex items-center gap-2">
                       <Calendar className="h-4 w-4" /> Date
                     </label>
-                    <Select value={selectedDate} onValueChange={(v) => { setSelectedDate(v); setSelectedTime(''); }}>
+                    <Select
+                      value={selectedDate}
+                      onValueChange={(v) => { setSelectedDate(v); setSelectedTime(''); }}
+                      disabled={!selectedPractitioner}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a date" />
+                        <SelectValue placeholder={selectedPractitioner ? "Select a date" : "Select a practitioner first"} />
                       </SelectTrigger>
                       <SelectContent>
                         {availableDates.map((date) => (
                           <SelectItem key={date} value={date}>
-                            {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            {new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -282,20 +391,41 @@ export default function BookingsPage() {
                   {selectedDate && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium flex items-center gap-2">
-                        <Clock className="h-4 w-4" /> Time
+                        <Clock className="h-4 w-4" /> Available Times
                       </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {availableTimes.map((slot) => (
-                          <Button
-                            key={slot.time}
-                            variant={selectedTime === slot.time ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setSelectedTime(slot.time)}
-                          >
-                            {slot.time}
-                          </Button>
-                        ))}
-                      </div>
+                      {loadingSlots ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          <span className="ml-2 text-sm text-muted-foreground">Loading availability...</span>
+                        </div>
+                      ) : timeSlots.filter((s) => s.available).length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-2">No available slots on this date. Try another day.</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {timeSlots.filter((s) => s.available).map((slot) => (
+                            <Button
+                              key={slot.time}
+                              variant={selectedTime === slot.time ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setSelectedTime(slot.time)}
+                            >
+                              {slot.time}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedTime && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Message to Practitioner (optional)</Label>
+                      <Textarea
+                        value={clientMessage}
+                        onChange={(e) => setClientMessage(e.target.value)}
+                        placeholder="Describe what you'd like guidance on..."
+                        className="h-20"
+                      />
                     </div>
                   )}
 
@@ -306,8 +436,14 @@ export default function BookingsPage() {
                     className="w-full"
                     disabled={!selectedPractitioner || !selectedDate || !selectedTime || loading}
                   >
-                    {loading ? 'Booking...' : 'Confirm Booking - $75'}
+                    {loading ? 'Booking...' : selectedPractitioner.startsWith('00000000-0000-0000-0000-') ? 'Confirm Booking - $75' : 'Send Booking Request - $75'}
                   </Button>
+
+                  {!selectedPractitioner.startsWith('00000000-0000-0000-0000-') && selectedPractitioner && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      The practitioner will review and confirm your booking request.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>

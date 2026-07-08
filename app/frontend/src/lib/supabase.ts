@@ -49,6 +49,9 @@ export const TABLES = {
   botanica_items: 'app_340b9f1944_botanica_items',
   consultation_notes: 'app_340b9f1944_consultation_notes',
   consultation_summary: 'app_340b9f1944_consultation_summary',
+  availability_blocks: 'app_340b9f1944_availability_blocks',
+  availability_exceptions: 'app_340b9f1944_availability_exceptions',
+  booking_requests: 'app_340b9f1944_booking_requests',
 } as const;
 
 // Product type matching actual DB schema
@@ -324,6 +327,52 @@ export interface DBConsultationSummary {
   updated_by: string | null;
   updated_at: string | null;
   created_at: string;
+}
+
+// Availability Block type
+export interface DBAvailabilityBlock {
+  id: string;
+  awo_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_break: boolean;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Availability Exception type
+export interface DBAvailabilityException {
+  id: string;
+  awo_id: string;
+  exception_date: string;
+  exception_type: 'day_off' | 'extended_hours' | 'special_window';
+  start_time: string | null;
+  end_time: string | null;
+  reason: string | null;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Booking Request type
+export interface DBBookingRequest {
+  id: string;
+  client_id: string;
+  awo_id: string;
+  requested_at: string;
+  duration_minutes: number;
+  service_type: string;
+  status: 'pending' | 'accepted' | 'declined' | 'proposed_new_time';
+  proposed_time: string | null;
+  client_message: string | null;
+  awo_response: string | null;
+  consultation_id: string | null;
+  client_timezone: string;
+  client_name?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Consultation Odu type
