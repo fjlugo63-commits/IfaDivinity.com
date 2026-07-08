@@ -4,63 +4,58 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
   Users,
-  UserCheck,
   Calendar,
   CreditCard,
   Home,
-  ShoppingBag,
-  Settings,
+  MessageSquare,
+  Briefcase,
   LogOut,
   Menu,
   X,
-  Shield,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 const sidebarItems = [
-  { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-  { label: 'Awos', path: '/admin/awos', icon: UserCheck },
-  { label: 'Clients', path: '/admin/clients', icon: Users },
-  { label: 'Consultations', path: '/admin/consultations', icon: Calendar },
-  { label: 'Payments', path: '/admin/payments', icon: CreditCard },
-  { label: 'Houses', path: '/admin/houses', icon: Home },
-  { label: 'Botanica', path: '/admin/botanica', icon: ShoppingBag },
-  { label: 'System Settings', path: '/admin/settings', icon: Settings },
+  { label: 'Dashboard', path: '/awo/dashboard', icon: LayoutDashboard },
+  { label: 'Consultations', path: '/awo/consultations', icon: Briefcase },
+  { label: 'Schedule', path: '/awo/schedule', icon: Calendar },
+  { label: 'Clients', path: '/awo/clients', icon: Users },
+  { label: 'Messages', path: '/awo/messages', icon: MessageSquare },
+  { label: 'Payments', path: '/awo/payments', icon: CreditCard },
+  { label: 'House Info', path: '/awo/house', icon: Home },
 ];
 
-export function AdminLayout() {
+export function AwoLayout() {
   const { user, userRole, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isAdminRole = userRole === 'admin' || userRole === 'super_admin' || userRole === 'seller';
-
   useEffect(() => {
-    if (!loading && (!user || !isAdminRole)) {
-      // Redirect non-admin users
-      if (userRole === 'awo') {
-        navigate('/awo/dashboard', { replace: true });
-      } else if (userRole === 'client') {
+    if (!loading && (!user || (userRole !== 'awo' && userRole !== 'admin'))) {
+      if (userRole === 'client') {
         navigate('/client/dashboard', { replace: true });
+      } else if (userRole === 'admin' || userRole === 'seller') {
+        navigate('/admin/dashboard', { replace: true });
       } else {
         navigate('/', { replace: true });
       }
     }
-  }, [user, userRole, loading, navigate, isAdminRole]);
+  }, [user, userRole, loading, navigate]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading Admin Portal...</p>
+          <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading Awo Portal...</p>
         </div>
       </div>
     );
   }
 
-  if (!user || !isAdminRole) {
+  if (!user || (userRole !== 'awo' && userRole !== 'admin')) {
     return null;
   }
 
@@ -70,7 +65,7 @@ export function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -81,13 +76,13 @@ export function AdminLayout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-800 text-white transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-700">
-          <Shield className="w-6 h-6 text-indigo-400" />
-          <span className="font-bold text-lg">Admin Portal</span>
+          <Star className="w-6 h-6 text-amber-400" />
+          <span className="font-bold text-lg">Awo Portal</span>
         </div>
 
         <nav className="mt-4 px-3 space-y-1">
@@ -99,8 +94,8 @@ export function AdminLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-amber-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
                 }`
               }
             >
@@ -114,7 +109,7 @@ export function AdminLayout() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-amber-100 px-4 lg:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -126,10 +121,10 @@ export function AdminLayout() {
             </Button>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700">
-                {user?.email?.split('@')[0] || 'Admin'}
+                {user?.email?.split('@')[0] || 'Awo'}
               </span>
               <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">
-                Test
+                Awo
               </Badge>
             </div>
           </div>

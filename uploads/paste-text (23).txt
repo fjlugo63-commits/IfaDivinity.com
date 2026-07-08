@@ -1,0 +1,92 @@
+Build a routing correction module called **Fix Awo & Client Role-Based Routing**.
+This module must ensure that Awo, Client, and Admin users are routed to the correct portals after login.
+
+------------------------------------------------------------
+### 1. Routing Fix Requirements
+
+#### 1.1 Add Awo Routes
+Add the following route under App.tsx or router.tsx:
+
+<Route path="/awo/*" element={<AwoLayout />} />
+
+Ensure AwoLayout is imported correctly.
+
+#### 1.2 Add Client Routes
+Confirm or add:
+
+<Route path="/client/*" element={<ClientLayout />} />
+
+#### 1.3 Add Admin Routes
+Confirm or add:
+
+<Route path="/admin/*" element={<AdminLayout />} />
+
+------------------------------------------------------------
+### 2. Role-Based Redirect After Login
+
+In the login success handler (auth callback):
+
+If profile.role === 'awo':
+    navigate('/awo');
+
+If profile.role === 'client':
+    navigate('/client');
+
+If profile.role === 'admin' or profile.role === 'super_admin':
+    navigate('/admin');
+
+------------------------------------------------------------
+### 3. Awo Portal Activation
+
+Ensure AwoLayout loads:
+- Awo Dashboard
+- Assigned Consultations
+- Pending Bookings
+- Consultation Workspace
+- Messaging
+- Payments
+- House Info
+
+If any of these components are missing, generate stubs.
+
+------------------------------------------------------------
+### 4. Client Portal Activation
+
+Ensure ClientLayout loads:
+- Book Consultation
+- My Consultations
+- Payments
+- Messaging
+- Profile
+
+------------------------------------------------------------
+### 5. Admin Portal Activation
+
+Ensure AdminLayout loads:
+- Dashboard
+- Awos
+- Clients
+- Consultations
+- Payments
+- Houses
+- System Settings
+
+------------------------------------------------------------
+### 6. Testing Requirements
+
+#### 6.1 Awo Test User
+Login as awo_test@ifadivinity.com:
+- Should redirect to /awo
+- Should NOT see client portal
+
+#### 6.2 Client Test User
+Login as client_test@ifadivinity.com:
+- Should redirect to /client
+
+#### 6.3 Admin Test User
+Login as admin_test@ifadivinity.com:
+- Should redirect to /admin
+
+------------------------------------------------------------
+
+Complete this module fully and ensure correct role-based routing across the entire application.

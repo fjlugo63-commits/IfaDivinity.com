@@ -31,11 +31,13 @@ const AdminSettings = lazy(() => import('./pages/AdminSettings'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
 const AwoDashboard = lazy(() => import('./pages/AwoDashboard'));
+const AwoConsultations = lazy(() => import('./pages/AwoConsultations'));
 const ConsultationWorkspace = lazy(() => import('./pages/ConsultationWorkspace'));
 const ConsultationHistory = lazy(() => import('./pages/ConsultationHistory'));
 const AwoScheduling = lazy(() => import('./pages/AwoScheduling'));
 const AwoClients = lazy(() => import('./pages/AwoClients'));
 const AwoPayments = lazy(() => import('./pages/AwoPayments'));
+const AwoMessages = lazy(() => import('./pages/AwoMessages'));
 const HouseDashboard = lazy(() => import('./pages/HouseDashboard'));
 const ClientAuth = lazy(() => import('./pages/ClientAuth'));
 const ClientDashboard = lazy(() => import('./pages/ClientDashboard'));
@@ -46,11 +48,11 @@ const ClientMessages = lazy(() => import('./pages/ClientMessages'));
 const ClientProfilePage = lazy(() => import('./pages/ClientProfile'));
 const ClientConsultations = lazy(() => import('./pages/ClientConsultations'));
 const ClientBotanica = lazy(() => import('./pages/ClientBotanica'));
-const AwoMessages = lazy(() => import('./pages/AwoMessages'));
 
-// Client Layout (eager load for wrapping)
+// Layouts (eager load for wrapping)
 import { ClientLayout } from './components/ClientLayout';
 import { AdminLayout } from './components/AdminLayout';
+import { AwoLayout } from './components/AwoLayout';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,15 +86,27 @@ const AppRoutes = () => (
       <Route path="/orders" element={<Orders />} />
       <Route path="/bookings" element={<Bookings />} />
       <Route path="/seller/dashboard" element={<SellerDashboard />} />
-      <Route path="/awo/dashboard" element={<AwoDashboard />} />
-      <Route path="/awo/schedule" element={<AwoScheduling />} />
-      <Route path="/awo/clients" element={<AwoClients />} />
-      <Route path="/awo/payments" element={<AwoPayments />} />
-      <Route path="/awo/house" element={<HouseDashboard />} />
+
+      {/* Awo Portal - Nested routes with shared layout */}
+      <Route path="/awo" element={<AwoLayout />}>
+        <Route path="dashboard" element={<AwoDashboard />} />
+        <Route path="consultations" element={<AwoConsultations />} />
+        <Route path="schedule" element={<AwoScheduling />} />
+        <Route path="clients" element={<AwoClients />} />
+        <Route path="messages" element={<AwoMessages />} />
+        <Route path="payments" element={<AwoPayments />} />
+        <Route path="house" element={<HouseDashboard />} />
+        <Route path="history" element={<ConsultationHistory />} />
+        <Route index element={<Navigate to="/awo/dashboard" replace />} />
+      </Route>
+
+      {/* Consultation workspace (shared between awo and client) */}
       <Route path="/consultation/:id" element={<ConsultationWorkspace />} />
-      <Route path="/awo/history" element={<ConsultationHistory />} />
+
+      {/* Client Portal - Auth routes outside layout */}
       <Route path="/client/auth" element={<ClientAuth />} />
       <Route path="/client/auth/callback" element={<ClientAuthCallback />} />
+
       {/* Client Portal - Nested routes with shared layout */}
       <Route path="/client" element={<ClientLayout />}>
         <Route path="dashboard" element={<ClientDashboard />} />
@@ -105,7 +119,7 @@ const AppRoutes = () => (
         <Route path="botanica" element={<ClientBotanica />} />
         <Route index element={<Navigate to="/client/dashboard" replace />} />
       </Route>
-      <Route path="/awo/messages" element={<AwoMessages />} />
+
       {/* Admin Portal - Nested routes with shared layout */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<AdminDashboard />} />
@@ -118,12 +132,19 @@ const AppRoutes = () => (
         <Route path="settings" element={<AdminSettings />} />
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
+
       {/* Legacy admin route */}
       <Route path="/admin-legacy" element={<Admin />} />
+
+      {/* Auth routes */}
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/error" element={<AuthError />} />
+
+      {/* System routes */}
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />
       <Route path="/system/test-accounts" element={<SystemTestAccounts />} />
+
+      {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </Suspense>

@@ -32,7 +32,36 @@ export default function AuthPage() {
       toast.error(error.message);
     } else {
       toast.success('Welcome back!');
-      navigate('/');
+      // Role-based redirect after sign in
+      const { supabase, TABLES } = await import('@/lib/supabase');
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        const { data: profile } = await supabase
+          .from(TABLES.profiles)
+          .select('role')
+          .eq('id', currentUser.id)
+          .single();
+        
+        const role = profile?.role;
+        switch (role) {
+          case 'awo':
+            navigate('/awo');
+            break;
+          case 'client':
+            navigate('/client');
+            break;
+          case 'admin':
+          case 'super_admin':
+          case 'seller':
+            navigate('/admin');
+            break;
+          default:
+            navigate('/');
+            break;
+        }
+      } else {
+        navigate('/');
+      }
     }
   }
 

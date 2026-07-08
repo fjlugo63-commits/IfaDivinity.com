@@ -25,7 +25,7 @@ try {
 
 export const supabase: SupabaseClient = supabaseInstance;
 
-export type UserRole = 'anon' | 'buyer' | 'seller' | 'admin' | 'client' | 'awo';
+export type UserRole = 'anon' | 'buyer' | 'seller' | 'admin' | 'super_admin' | 'client' | 'awo' | 'house_admin';
 
 // Centralized table names mapping to actual Supabase tables
 export const TABLES = {
