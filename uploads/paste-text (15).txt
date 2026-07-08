@@ -1,0 +1,103 @@
+Build a new feature module called **Client Portal – CP‑2: Booking Flow**.  
+This module must allow clients to view Awo availability, request bookings, manage booking status, and handle rescheduling/cancellation.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Booking Flow — Functional Requirements
+
+#### 1.1 View Awo Availability
+- Fetch availability using Scheduling API:
+  - get-available-slots (client-facing)
+- Convert all times to **client timezone**.
+- Display available slots in:
+  - Calendar view (preferred)
+  - OR list view (fallback)
+- Show:
+  - Available slots (blue)
+  - Proposed times (amber)
+  - Confirmed consultations (green)
+  - Unavailable times (gray)
+
+#### 1.2 Create Booking Request
+When client selects a time slot:
+- Create booking request record:
+  - client_id
+  - awo_id
+  - requested_time (client timezone)
+  - status = "pending"
+- Notify Awo (integration stub)
+- Show toast: “Booking request sent”
+
+#### 1.3 Booking Status Viewer
+Client must see all booking requests with statuses:
+- pending
+- accepted
+- declined
+- proposed_new_time
+
+Each booking card must show:
+- Awo name
+- Requested time
+- Current status
+- Payment status (if accepted)
+
+#### 1.4 Accept Proposed New Time
+If Awo proposes a new time:
+- Client can accept or decline.
+- Accepting:
+  - Updates booking record
+  - Creates consultation record
+  - Redirects to Client Dashboard
+
+#### 1.5 Reschedule Consultation
+Client can request reschedule:
+- Creates new booking request linked to existing consultation.
+- Marks consultation as “reschedule_requested”.
+
+#### 1.6 Cancel Consultation
+Client can cancel consultation if allowed by policy:
+- Update consultation status = “cancelled”
+- Notify Awo (integration stub)
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Booking Page Layout
+Booking page must include:
+- Availability calendar
+- Booking request list
+- Status viewer
+- Action buttons (Accept, Decline, Cancel, Reschedule)
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Client Portal styling (soft palette, rounded cards).
+- Status badges:
+  - Pending = amber
+  - Accepted = green
+  - Declined = red
+  - Proposed = blue
+
+#### 2.3 UX Behavior
+- Smooth transitions between calendar and booking list.
+- Toast notifications for:
+  - Booking created
+  - Proposed time accepted
+  - Consultation cancelled
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- GET /client/bookings
+- POST /client/bookings
+- PUT /client/bookings/{id}/accept-proposed
+- PUT /client/bookings/{id}/decline
+- PUT /client/bookings/{id}/cancel
+- PUT /client/bookings/{id}/reschedule
+
+#### 3.2 Data Sources
+- booking_requests table
+- consultations table
+- availability

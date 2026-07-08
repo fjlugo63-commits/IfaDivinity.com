@@ -26,6 +26,7 @@ import HouseDashboard from './pages/HouseDashboard';
 import ClientAuth from './pages/ClientAuth';
 import ClientDashboard from './pages/ClientDashboard';
 import ClientAuthCallback from './pages/ClientAuthCallback';
+import ClientBookings from './pages/ClientBookings';
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const AppRoutes = () => (
     <Route path="/client/auth" element={<ClientAuth />} />
     <Route path="/client/auth/callback" element={<ClientAuthCallback />} />
     <Route path="/client/dashboard" element={<ClientDashboard />} />
+    <Route path="/client/bookings" element={<ClientBookings />} />
     <Route path="/admin" element={<Admin />} />
     <Route path="/auth/callback" element={<AuthCallback />} />
     <Route path="/auth/error" element={<AuthError />} />

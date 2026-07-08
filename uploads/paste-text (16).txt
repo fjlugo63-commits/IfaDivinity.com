@@ -1,0 +1,129 @@
+Build a new feature module called **Client Portal – CP‑3: Payments**.  
+This module must allow clients to view payment status, complete payments via Stripe, view receipts, and access payment history.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Client Payments — Functional Requirements
+
+#### 1.1 Payment Status Viewer
+For each consultation or Ebo:
+- Display payment status:
+  - unpaid
+  - pending
+  - paid
+  - refunded
+- Show:
+  - Amount
+  - Currency
+  - Awo name
+  - Consultation date/time
+  - Stripe payment link (if unpaid or pending)
+
+#### 1.2 Stripe Payment Link Handling
+- Render Stripe-hosted payment link from Payments module.
+- Open link in new tab.
+- Poll payment status until:
+  - paid
+  - expired
+- Update UI automatically.
+
+#### 1.3 Payment Completion Flow
+When Stripe marks payment as completed:
+- Update:
+  - payment_status = paid
+  - paid_at timestamp
+- Show toast: “Payment completed”
+- Redirect client to:
+  - Consultation detail (if consultation payment)
+  - Ebo detail (if Ebo payment)
+
+#### 1.4 Refund Display
+- Show refund status if applicable:
+  - refunded_at timestamp
+  - refund amount
+- No client-side refund initiation (Awo-only).
+
+------------------------------------------------------------
+### 2. Payment History
+
+#### 2.1 Payment History Page
+List all payments for the logged-in client:
+- Consultation payments
+- Ebo payments
+- Botanica orders (Phase 1)
+- Refunds
+
+Each row must show:
+- Date/time
+- Type (Consultation/Ebo/Botanica)
+- Amount
+- Status
+- Stripe reference
+
+#### 2.2 Payment Detail View
+Display:
+- Full payment metadata
+- Consultation or Ebo link
+- Receipt link (Stripe-hosted)
+- Refund information (if applicable)
+
+------------------------------------------------------------
+### 3. UI Requirements
+
+#### 3.1 Layout
+Client Payments module includes:
+- Payment Status Viewer
+- Payment History
+- Payment Detail Page
+
+#### 3.2 Styling
+- Use IfaDivinity design system tokens.
+- Status badges:
+  - Paid = green
+  - Pending = amber
+  - Unpaid = red
+  - Refunded = gray
+
+#### 3.3 UX Behavior
+- Smooth transitions between payment states.
+- Toast notifications for:
+  - Payment completed
+  - Payment link opened
+  - Payment expired
+
+------------------------------------------------------------
+### 4. Backend Requirements
+
+#### 4.1 API Endpoints
+Create or extend:
+- GET /client/payments
+- GET /client/payments/{id}
+- GET /client/payments/{id}/status
+- POST /client/payments/{id}/open-link
+
+#### 4.2 Stripe Integration
+- Use Stripe Payment Intents for consultation payments.
+- Use Stripe Checkout Sessions for Ebo payments.
+- Webhooks must update:
+  - payment_status
+  - paid_at
+  - refunded_at
+
+#### 4.3 Data Sources
+- payments table
+- consultations table
+- ebo table
+- botanica_orders table
+- stripe_webhook_events table
+
+#### 4.4 Access Control
+- Client can only view their own payments.
+- Client cannot initiate refunds.
+
+------------------------------------------------------------
+### 5. Integration Requirements
+
+#### 5.1 Integration with CP‑1 Dashboard
+- Dashboard must show:
+  - Pending payments
+  - Recently

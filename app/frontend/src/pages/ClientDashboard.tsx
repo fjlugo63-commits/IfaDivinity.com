@@ -346,7 +346,7 @@ export default function ClientDashboard() {
               <Button
                 variant="outline"
                 className="h-auto py-4 flex-col gap-2 rounded-xl border-amber-200 hover:bg-amber-50 hover:border-amber-300"
-                onClick={() => toast.info('Booking flow coming in CP-2')}
+                onClick={() => navigate('/client/bookings')}
               >
                 <CalendarPlus className="h-5 w-5 text-amber-600" />
                 <span className="text-xs font-medium">Book Consultation</span>
