@@ -29,55 +29,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
+    let mounted = true;
+
+    // Safety timeout - if auth initialization takes more than 5 seconds, stop loading
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Auth initialization timed out after 5s, proceeding without auth');
         setLoading(false);
       }
-    });
+    }, 5000);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setUserRole('anon');
-        setLoading(false);
+    async function initAuth() {
+      try {
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (error) {
+          console.warn('getSession error:', error.message);
+          setLoading(false);
+          return;
+        }
+
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        
+        if (currentSession?.user) {
+          await fetchUserRole(currentSession.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn('Auth initialization failed:', err);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    });
+    }
 
-    return () => subscription.unsubscribe();
+    initAuth();
+
+    let subscription: { unsubscribe: () => void } | null = null;
+    
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        if (!mounted) return;
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        if (newSession?.user) {
+          fetchUserRole(newSession.user.id);
+        } else {
+          setUserRole('anon');
+          setLoading(false);
+        }
+      });
+      subscription = data.subscription;
+    } catch (err) {
+      console.warn('Failed to set up auth state listener:', err);
+    }
+
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimeout);
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchUserRole(userId: string) {
-    // Add a timeout to prevent hanging if the profiles table doesn't exist or RLS blocks
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
-    
     try {
-      const queryPromise = supabase
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+
+      const { data, error } = await supabase
         .from(TABLES.profiles)
         .select('role')
         .eq('id', userId)
-        .single();
+        .single()
+        .abortSignal(controller.signal);
 
-      const result = await Promise.race([queryPromise, timeoutPromise]);
-      
-      if (result === null) {
-        // Timeout - assume buyer role
+      clearTimeout(timeout);
+
+      if (error || !data) {
         setUserRole('buyer');
       } else {
-        const { data, error } = result;
-        if (error || !data) {
-          setUserRole('buyer');
-        } else {
-          setUserRole(data.role as UserRole);
-        }
+        setUserRole(data.role as UserRole);
       }
     } catch {
+      // Timeout or network error - default to buyer
       setUserRole('buyer');
     } finally {
       setLoading(false);
@@ -88,83 +133,102 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isSupabaseConfigured) {
       return { error: new Error('Supabase is not configured. Please connect your Supabase project.') };
     }
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: name, role },
-      },
-    });
-    if (!error) {
-      // The trigger should auto-create profile, but let's also try to upsert
-      const { data: { user: newUser } } = await supabase.auth.getUser();
-      if (newUser) {
-        await supabase.from(TABLES.profiles).upsert({
-          id: newUser.id,
-          email,
-          full_name: name,
-          role,
-        });
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: { full_name: name, role },
+        },
+      });
+      if (!error) {
+        const { data: { user: newUser } } = await supabase.auth.getUser();
+        if (newUser) {
+          await supabase.from(TABLES.profiles).upsert({
+            id: newUser.id,
+            email,
+            full_name: name,
+            role,
+          });
+        }
       }
+      return { error: error as Error | null };
+    } catch (err) {
+      return { error: err as Error };
     }
-    return { error: error as Error | null };
   }
 
   async function signIn(email: string, password: string) {
     if (!isSupabaseConfigured) {
       return { error: new Error('Supabase is not configured. Please connect your Supabase project.') };
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error as Error | null };
+    } catch (err) {
+      return { error: err as Error };
+    }
   }
 
   async function signInWithMagicLink(email: string) {
     if (!isSupabaseConfigured) {
       return { error: new Error('Supabase is not configured. Please connect your Supabase project.') };
     }
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/client/auth/callback`,
-      },
-    });
-    return { error: error as Error | null };
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/client/auth/callback`,
+        },
+      });
+      return { error: error as Error | null };
+    } catch (err) {
+      return { error: err as Error };
+    }
   }
 
   async function registerClient(data: { name: string; email: string; phone?: string; timezone?: string }) {
     if (!isSupabaseConfigured) {
       return { error: new Error('Supabase is not configured. Please connect your Supabase project.') };
     }
-    // First send magic link for auth
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: data.email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/client/auth/callback`,
-        data: { full_name: data.name, role: 'client' },
-      },
-    });
-    if (otpError) return { error: otpError as Error };
+    try {
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: data.email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/client/auth/callback`,
+          data: { full_name: data.name, role: 'client' },
+        },
+      });
+      if (otpError) return { error: otpError as Error };
 
-    // Create client record (will be linked after auth confirmation)
-    const { error: clientError } = await supabase.from(TABLES.clients).insert({
-      name: data.name,
-      email: data.email,
-      phone: data.phone || null,
-      timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      status: 'active',
-      awo_id: '00000000-0000-0000-0000-000000000000', // placeholder, will be updated
-    });
-    if (clientError && !clientError.message.includes('duplicate')) {
-      return { error: clientError as unknown as Error };
+      const { error: clientError } = await supabase.from(TABLES.clients).insert({
+        name: data.name,
+        email: data.email,
+        phone: data.phone || null,
+        timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        status: 'active',
+        awo_id: '00000000-0000-0000-0000-000000000000',
+      });
+      if (clientError && !clientError.message.includes('duplicate')) {
+        return { error: clientError as unknown as Error };
+      }
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
     }
-    return { error: null };
   }
 
   async function signOut() {
     if (!isSupabaseConfigured) return;
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore signOut errors
+    }
     setUserRole('anon');
+    setSession(null);
+    setUser(null);
   }
 
   return (
