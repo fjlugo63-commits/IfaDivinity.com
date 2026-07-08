@@ -11,33 +11,29 @@ const TEST_ACCOUNTS = [
     email: "awo_test@ifadivinity.com",
     role: "awo",
     full_name: "Awo Test",
-    house_id: 1,
+    needs_house: true,
     is_test: true,
-    status: "active",
   },
   {
     email: "client_test@ifadivinity.com",
     role: "client",
     full_name: "Client Test",
-    house_id: null,
+    needs_house: false,
     is_test: true,
-    status: "active",
   },
   {
     email: "admin_test@ifadivinity.com",
     role: "admin",
     full_name: "Admin Test",
-    house_id: null,
+    needs_house: false,
     is_test: true,
-    status: "active",
   },
   {
     email: "house_admin_test@ifadivinity.com",
     role: "house_admin",
     full_name: "House Admin Test",
-    house_id: 1,
+    needs_house: true,
     is_test: true,
-    status: "active",
   },
 ];
 
@@ -87,7 +83,7 @@ serve(async (req) => {
       });
     }
 
-    // Handle POST - create test accounts
+    // Handle POST - create test accounts or send magic link
     let body;
     try {
       body = await req.json();
@@ -154,21 +150,21 @@ serve(async (req) => {
 
         if (createResult.error) {
           const errMsg = createResult.error.message || "";
-          if (errMsg.includes("already") || errMsg.includes("exists") || errMsg.includes("registered") || errMsg.includes("duplicate")) {
+          if (errMsg.includes("already") || errMsg.includes("exists") || errMsg.includes("registered") || errMsg.includes("duplicate") || errMsg.includes("unique")) {
             // User exists, find them
             const listResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-            if (!listResult.error) {
-              const existingUser = listResult.data?.users?.find((u) => u.email === account.email);
+            if (!listResult.error && listResult.data?.users) {
+              const existingUser = listResult.data.users.find((u) => u.email === account.email);
               if (existingUser) {
                 userId = existingUser.id;
                 isExisting = true;
-                // Update password
+                // Update password and confirm email
                 await supabase.auth.admin.updateUserById(userId, { password: defaultPassword, email_confirm: true });
               }
             }
 
             if (!userId) {
-              // Try profiles table
+              // Try profiles table as fallback
               const { data: profileData } = await supabase
                 .from("app_340b9f1944_profiles")
                 .select("id")
@@ -185,35 +181,8 @@ serve(async (req) => {
               continue;
             }
           } else {
-            // Try direct REST call
-            try {
-              const signUpResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${supabaseServiceKey}`,
-                  "apikey": supabaseServiceKey,
-                },
-                body: JSON.stringify({
-                  email: account.email,
-                  password: defaultPassword,
-                  email_confirm: true,
-                  user_metadata: { full_name: account.full_name, role: account.role },
-                }),
-              });
-
-              if (signUpResponse.ok) {
-                const signUpData = await signUpResponse.json();
-                userId = signUpData.id;
-              } else {
-                const signUpError = await signUpResponse.text();
-                results.push({ email: account.email, role: account.role, status: "error", error: `Creation failed: ${signUpError}` });
-                continue;
-              }
-            } catch (fetchErr) {
-              results.push({ email: account.email, role: account.role, status: "error", error: `Creation failed: ${fetchErr.message}` });
-              continue;
-            }
+            results.push({ email: account.email, role: account.role, status: "error", error: `Auth creation failed: ${errMsg}` });
+            continue;
           }
         } else {
           userId = createResult.data.user.id;
@@ -231,7 +200,13 @@ serve(async (req) => {
           full_name: account.full_name,
           role: account.role,
           is_test: true,
+          updated_at: new Date().toISOString(),
         };
+
+        // Set verified_egbo for awo accounts
+        if (account.role === "awo") {
+          profileData.verified_egbo = true;
+        }
 
         const { error: profileError } = await supabase
           .from("app_340b9f1944_profiles")
@@ -243,88 +218,134 @@ serve(async (req) => {
         }
 
         // Step 3: Create role-specific records
-        if (account.role === "awo") {
+        if (account.role === "awo" || account.role === "house_admin") {
+          // Get or create a test house
+          // ifa_houses columns: id, name, description, owner_id (NOT NULL), subscription_tier, created_at, updated_at
+          let houseId = null;
+
           const { data: houseData } = await supabase
             .from("app_340b9f1944_ifa_houses")
             .select("id")
             .limit(1)
             .maybeSingle();
 
-          let houseId = houseData?.id || null;
+          houseId = houseData?.id || null;
 
           if (!houseId) {
-            const { data: newHouse } = await supabase
+            const { data: newHouse, error: houseError } = await supabase
               .from("app_340b9f1944_ifa_houses")
               .insert({
                 name: "Test House of Ifa",
                 description: "Default test house for development",
-                location: "Test Location",
-                head_awo_id: userId,
-                is_active: true,
+                owner_id: userId,
+                subscription_tier: "basic",
               })
               .select("id")
               .single();
-            houseId = newHouse?.id || null;
+
+            if (houseError) {
+              console.warn(`House creation failed: ${houseError.message}`);
+            } else {
+              houseId = newHouse?.id || null;
+            }
           }
 
           if (houseId) {
-            await supabase
+            // house_practitioners columns: id, house_id, practitioner_id, role, is_active, joined_at
+            const { data: existingPrac } = await supabase
               .from("app_340b9f1944_house_practitioners")
-              .upsert({
-                house_id: houseId,
-                practitioner_id: userId,
-                role: "awo",
-                is_active: true,
-              }, { onConflict: "house_id,practitioner_id" })
-              .select();
+              .select("id")
+              .eq("house_id", houseId)
+              .eq("practitioner_id", userId)
+              .maybeSingle();
+
+            if (existingPrac) {
+              await supabase
+                .from("app_340b9f1944_house_practitioners")
+                .update({
+                  role: account.role === "house_admin" ? "house_admin" : "awo",
+                  is_active: true,
+                })
+                .eq("id", existingPrac.id);
+            } else {
+              const { error: pracError } = await supabase
+                .from("app_340b9f1944_house_practitioners")
+                .insert({
+                  house_id: houseId,
+                  practitioner_id: userId,
+                  role: account.role === "house_admin" ? "house_admin" : "awo",
+                  is_active: true,
+                  joined_at: new Date().toISOString(),
+                });
+
+              if (pracError) {
+                console.warn(`House practitioner insert failed: ${pracError.message}`);
+              }
+            }
           }
-        } else if (account.role === "client") {
-          await supabase
-            .from("app_340b9f1944_clients")
-            .upsert({
-              user_id: userId,
-              name: account.full_name,
+        }
+
+        if (account.role === "client") {
+          // clients columns: id, user_id, awo_id (NOT NULL), name (NOT NULL), email, phone, status, timezone, is_test, created_at, updated_at
+          let awoId = null;
+
+          // Find an existing awo profile
+          const { data: awoProfile } = await supabase
+            .from("app_340b9f1944_profiles")
+            .select("id")
+            .eq("role", "awo")
+            .limit(1)
+            .maybeSingle();
+
+          awoId = awoProfile?.id || null;
+
+          if (!awoId) {
+            // Skip client record if no awo exists yet
+            results.push({
               email: account.email,
-              timezone: "America/New_York",
-              status: "active",
-              is_test: true,
-              awo_id: "00000000-0000-0000-0000-000000000000",
-            }, { onConflict: "email" })
-            .select();
-        } else if (account.role === "house_admin") {
-          const { data: houseData } = await supabase
-            .from("app_340b9f1944_ifa_houses")
-            .select("id")
-            .limit(1)
-            .maybeSingle();
-
-          let houseId = houseData?.id || null;
-
-          if (!houseId) {
-            const { data: newHouse } = await supabase
-              .from("app_340b9f1944_ifa_houses")
-              .insert({
-                name: "Test House of Ifa",
-                description: "Default test house for development",
-                location: "Test Location",
-                head_awo_id: userId,
-                is_active: true,
-              })
-              .select("id")
-              .single();
-            houseId = newHouse?.id || null;
+              role: account.role,
+              status: isExisting ? "updated" : "created",
+              userId,
+              note: "Profile created but client record skipped (no awo found). Re-run after awo account exists.",
+            });
+            continue;
           }
 
-          if (houseId) {
+          // Check if client record already exists
+          const { data: existingClient } = await supabase
+            .from("app_340b9f1944_clients")
+            .select("id")
+            .eq("email", account.email)
+            .maybeSingle();
+
+          if (existingClient) {
             await supabase
-              .from("app_340b9f1944_house_practitioners")
-              .upsert({
-                house_id: houseId,
-                practitioner_id: userId,
-                role: "house_admin",
-                is_active: true,
-              }, { onConflict: "house_id,practitioner_id" })
-              .select();
+              .from("app_340b9f1944_clients")
+              .update({
+                user_id: userId,
+                name: account.full_name,
+                status: "active",
+                is_test: true,
+                awo_id: awoId,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existingClient.id);
+          } else {
+            const { error: clientError } = await supabase
+              .from("app_340b9f1944_clients")
+              .insert({
+                user_id: userId,
+                awo_id: awoId,
+                name: account.full_name,
+                email: account.email,
+                timezone: "America/New_York",
+                status: "active",
+                is_test: true,
+              });
+
+            if (clientError) {
+              console.warn(`Client record insert failed: ${clientError.message}`);
+            }
           }
         }
 
@@ -335,25 +356,23 @@ serve(async (req) => {
           userId,
         });
       } catch (err) {
-        results.push({ email: account.email, role: account.role, status: "error", error: err.message });
+        results.push({ email: account.email, role: account.role, status: "error", error: err.message || String(err) });
       }
     }
 
-    // Audit log
+    // Audit log (non-critical)
     try {
       await supabase.from("app_340b9f1944_audit_logs").insert({
-        actor_id: "00000000-0000-0000-0000-000000000000",
         action: "test_accounts.seeded",
         resource: "system",
-        resource_id: "test-accounts",
-        metadata: { results },
+        metadata: { results, created_at: new Date().toISOString() },
       });
     } catch {
       // Non-critical
     }
 
-    const successCount = results.filter(r => r.status === "created" || r.status === "updated").length;
-    const errorCount = results.filter(r => r.status === "error").length;
+    const successCount = results.filter((r) => r.status === "created" || r.status === "updated").length;
+    const errorCount = results.filter((r) => r.status === "error").length;
 
     return new Response(JSON.stringify({
       success: errorCount === 0,
