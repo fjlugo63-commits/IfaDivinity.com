@@ -16,19 +16,24 @@ async function initializeApp() {
     return;
   }
 
+  // Always render the app, even if config loading fails
   try {
     await loadRuntimeConfig();
-    console.log('Runtime configuration loaded successfully');
-  } catch (error) {
-    console.warn(
-      'Failed to load runtime configuration, using defaults:',
-      error
-    );
+  } catch {
+    // Config loading failed - proceed with defaults
   }
 
-  // Render the app
-  createRoot(document.getElementById('root')!).render(<App />);
+  const rootEl = document.getElementById('root');
+  if (rootEl) {
+    createRoot(rootEl).render(<App />);
+  }
 }
 
-// Initialize the app
-initializeApp();
+// Initialize the app - ensure it always runs
+initializeApp().catch(() => {
+  // Last resort: if initializeApp itself throws, still try to render
+  const rootEl = document.getElementById('root');
+  if (rootEl) {
+    createRoot(rootEl).render(<App />);
+  }
+});
