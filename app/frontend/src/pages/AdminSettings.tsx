@@ -1,12 +1,46 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Server, Flag, CreditCard } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Settings, Server, Flag, CreditCard, Users, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminSettings() {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
       <p className="text-sm text-gray-500">Phase 1 — View only. Write actions available in Phase 2.</p>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-gray-500" />
+            Developer Tools
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/system/test-accounts')}
+            className="flex items-center gap-2"
+          >
+            <Users className="w-4 h-4" />
+            System Test Accounts
+            <ExternalLink className="w-3 h-3" />
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/setup/super-admin')}
+            className="flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Super Admin Setup
+            <ExternalLink className="w-3 h-3" />
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Environment Info */}

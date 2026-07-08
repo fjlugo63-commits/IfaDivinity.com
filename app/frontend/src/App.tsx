@@ -29,6 +29,7 @@ const AdminPayments = lazy(() => import('./pages/AdminPayments'));
 const AdminHousesBotanica = lazy(() => import('./pages/AdminHousesBotanica'));
 const AdminSettings = lazy(() => import('./pages/AdminSettings'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
+const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
 const AwoDashboard = lazy(() => import('./pages/AwoDashboard'));
 const ConsultationWorkspace = lazy(() => import('./pages/ConsultationWorkspace'));
 const ConsultationHistory = lazy(() => import('./pages/ConsultationHistory'));
@@ -122,6 +123,7 @@ const AppRoutes = () => (
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/error" element={<AuthError />} />
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />
+      <Route path="/system/test-accounts" element={<SystemTestAccounts />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </Suspense>

@@ -1,0 +1,83 @@
+Build a new utility module called **System Test Accounts – Setup**.
+This module must create all required MVP1 test users: Awo Test, Client Test, Admin Test, and House Admin Test.
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Test Accounts to Create
+
+#### 1.1 Awo Test Account
+Email: awo_test@ifadivinity.com  
+Role: awo  
+House: assign to House ID 1  
+Flags: is_test = true  
+Status: active  
+
+#### 1.2 Client Test Account
+Email: client_test@ifadivinity.com  
+Role: client  
+Flags: is_test = true  
+Status: active  
+
+#### 1.3 Admin Test Account
+Email: admin_test@ifadivinity.com  
+Role: admin  
+Flags: is_test = true  
+Status: active  
+
+#### 1.4 House Admin Test Account
+Email: house_admin_test@ifadivinity.com  
+Role: house_admin  
+House: assign to House ID 1  
+Flags: is_test = true  
+Status: active
+
+------------------------------------------------------------
+### 2. Backend Requirements
+
+#### 2.1 Create Auth Users
+Implement a server-side function to create users in `auth.users`:
+- Input: email, role, house_id (optional)
+- Output: user_id
+
+#### 2.2 Create Profiles
+Insert into `profiles`:
+- user_id
+- full_name
+- role
+- is_test flag
+
+#### 2.3 Create Role-Specific Records
+
+##### Awo Test
+Insert into `awos`:
+- user_id
+- house_id
+- is_active = true
+
+##### Client Test
+Insert into `clients`:
+- user_id
+- timezone = 'America/New_York'
+- is_active = true
+
+##### Admin Test
+Insert into `admins` or `profiles` role = admin
+
+##### House Admin Test
+Insert into `house_admins`:
+- user_id
+- house_id
+
+#### 2.4 Magic Link Trigger
+After creation, trigger login email:
+- POST /auth/send-magic-link
+
+------------------------------------------------------------
+### 3. API Endpoints
+
+Create or extend:
+
+- POST /system/test-users/create  
+Creates all four test accounts in one call.
+
+- GET /system/test-users
