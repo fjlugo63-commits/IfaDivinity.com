@@ -1,0 +1,122 @@
+Build a new feature module called **Client Portal – CP‑5: Messaging (Phase 1 Stub)**.  
+This module must allow clients to send messages to their Awo and view replies.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Messaging — Functional Requirements (Phase 1 Stub)
+
+#### 1.1 Basic Messaging
+- Client can send a message to their assigned Awo.
+- Awo can reply from the Awo Portal.
+- Messages must store:
+  - sender_id
+  - receiver_id
+  - consultation_id (optional)
+  - message_text
+  - created_at
+  - read_at (Phase 2)
+- Messages must appear in chronological order.
+
+#### 1.2 Conversation View
+- Show a simple chat-style thread:
+  - Client messages (right aligned)
+  - Awo messages (left aligned)
+- Auto-scroll to latest message.
+- Show timestamps in client timezone.
+
+#### 1.3 Message Composer
+- Text input box
+- “Send” button
+- Disable send if empty
+- Show toast: “Message sent”
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+Messaging module includes:
+- Conversation list (Phase 1: single thread with assigned Awo)
+- Conversation view
+- Message composer
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Client Portal styling (soft palette, rounded bubbles).
+- Message bubbles:
+  - Client = blue
+  - Awo = gray
+
+#### 2.3 UX Behavior
+- Smooth transitions.
+- Auto-scroll on new message.
+- Toast notifications for:
+  - Message sent
+  - New message received (polling)
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- GET /client/messages
+- POST /client/messages
+- GET /client/messages/{awo_id}
+- POST /client/messages/send
+
+#### 3.2 Data Sources
+- messages table
+- clients table
+- awo table
+- consultations table (optional link)
+
+#### 3.3 Access Control
+- Client can only view messages where they are sender or receiver.
+- Awo can only view messages from clients assigned to them.
+- No cross-client visibility.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with CP‑1 Dashboard
+- Dashboard must show:
+  - Unread messages count (Phase 1: simple count of messages since last login)
+
+#### 4.2 Integration with Awo Portal
+- Awo Portal must show:
+  - Incoming client messages
+  - Reply composer
+
+#### 4.3 Integration with Consultation Workspace
+- Optional: allow linking a message to a consultation.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Message creation
+- Message retrieval
+- Conversation rendering
+
+#### 5.2 Integration Tests
+- Client → Awo → Client message flow
+- Role-based access enforcement
+- Timezone conversion
+
+#### 5.3 UI Tests
+- Message bubble rendering
+- Composer behavior
+- Responsive layout
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Client Messaging (Phase 1 Stub).
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated with CP‑1, CP‑2, CP‑3, CP‑4, and Awo Portal.
+- Ready for CP‑6 (Client Profile).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare for CP‑6 (Client Profile).

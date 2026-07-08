@@ -15,6 +15,7 @@ import {
   FileSearch,
   BellOff,
   DollarSign,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -290,6 +291,13 @@ function QuickActionsPanel({
       icon: DollarSign,
       color: 'bg-amber-600 text-white hover:bg-amber-700',
       onClick: () => navigate('/awo/payments'),
+      entitlement: null,
+    },
+    {
+      label: 'Client Messages',
+      icon: MessageSquare,
+      color: 'bg-purple-600 text-white hover:bg-purple-700',
+      onClick: () => navigate('/awo/messages'),
       entitlement: null,
     },
   ];

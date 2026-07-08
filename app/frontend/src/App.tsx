@@ -34,6 +34,8 @@ const ClientDashboard = lazy(() => import('./pages/ClientDashboard'));
 const ClientAuthCallback = lazy(() => import('./pages/ClientAuthCallback'));
 const ClientBookings = lazy(() => import('./pages/ClientBookings'));
 const ClientPayments = lazy(() => import('./pages/ClientPayments'));
+const ClientMessages = lazy(() => import('./pages/ClientMessages'));
+const AwoMessages = lazy(() => import('./pages/AwoMessages'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -79,6 +81,8 @@ const AppRoutes = () => (
       <Route path="/client/dashboard" element={<ClientDashboard />} />
       <Route path="/client/bookings" element={<ClientBookings />} />
       <Route path="/client/payments" element={<ClientPayments />} />
+      <Route path="/client/messages" element={<ClientMessages />} />
+      <Route path="/awo/messages" element={<AwoMessages />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/error" element={<AuthError />} />

@@ -54,6 +54,7 @@ export const TABLES = {
   availability_blocks: 'app_340b9f1944_availability_blocks',
   availability_exceptions: 'app_340b9f1944_availability_exceptions',
   booking_requests: 'app_340b9f1944_booking_requests',
+  messages: 'app_340b9f1944_messages',
 } as const;
 
 // Product type matching actual DB schema
@@ -417,4 +418,15 @@ export interface DBConsultationOdu {
   previous_odu_id: number | null;
   created_at: string;
   odu?: DBOduReference;
+}
+
+// Message type for client-awo messaging
+export interface DBMessage {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  consultation_id: string | null;
+  message_text: string;
+  read_at: string | null;
+  created_at: string;
 }

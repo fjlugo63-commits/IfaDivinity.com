@@ -378,7 +378,7 @@ export default function ClientDashboard() {
               <Button
                 variant="outline"
                 className="h-auto py-4 flex-col gap-2 rounded-xl border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                onClick={() => toast.info('Messages coming in Phase 2')}
+                onClick={() => navigate('/client/messages')}
               >
                 <MessageSquare className="h-5 w-5 text-gray-600" />
                 <span className="text-xs font-medium">Messages</span>
