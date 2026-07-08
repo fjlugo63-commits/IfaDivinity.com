@@ -1,0 +1,168 @@
+Build a new feature module called **Client Management** inside the Awo Portal.  
+This module must allow Awos to manage clients, view client profiles, access consultation history, and initiate new consultations.  
+Implement all functionality and complete work through test.
+
+------------------------------------------------------------
+### 1. Client Management — Functional Requirements
+
+#### 1.1 Client List
+- Display all clients associated with the logged‑in Awo.
+- Show:
+  - Client name
+  - Email
+  - Phone
+  - Last consultation date
+  - Total consultations
+- Provide search by:
+  - Name
+  - Email
+  - Phone
+- Provide filters:
+  - Active clients
+  - Inactive clients
+  - Clients with upcoming consultations
+
+#### 1.2 Client Profile View
+Selecting a client must open a detailed profile containing:
+
+##### 1.2.1 Basic Information
+- Name
+- Email
+- Phone
+- Time zone
+- Notes (Awo-only)
+
+##### 1.2.2 Consultation History
+- List all past consultations for this client.
+- Show:
+  - Date/time
+  - Odu
+  - Ire/Osogbo
+  - Ebo
+  - Status
+- Clicking a consultation opens Consultation History (Module 2E).
+
+##### 1.2.3 Upcoming Consultations
+- Show scheduled consultations.
+- Allow Awo to:
+  - Open consultation
+  - Reschedule
+  - Cancel
+
+##### 1.2.4 Client Notes
+- Awo-only notes section.
+- Support:
+  - Rich text
+  - Timestamped entries
+  - Auto-save
+
+#### 1.3 Start New Consultation
+- Provide “Start Consultation” button.
+- Create a new consultation record.
+- Redirect Awo to Consultation Workspace.
+
+#### 1.4 Client Creation
+- Provide “Add New Client” button.
+- Fields:
+  - Name
+  - Email
+  - Phone
+  - Time zone
+- Validate email uniqueness.
+- Save to `clients` table.
+
+------------------------------------------------------------
+### 2. UI Requirements
+
+#### 2.1 Layout
+- Two-panel layout:
+  - Left: Client List
+  - Right: Client Profile
+- Use tabs or collapsible sections for:
+  - Profile
+  - Consultation History
+  - Notes
+
+#### 2.2 Styling
+- Use IfaDivinity design system tokens.
+- Match visual style of Awo Dashboard and Scheduling.
+
+#### 2.3 UX Behavior
+- Smooth transitions between clients.
+- Auto-save notes silently.
+- Toast notifications for:
+  - Client created
+  - Notes saved
+  - Consultation started
+
+------------------------------------------------------------
+### 3. Backend Requirements
+
+#### 3.1 API Endpoints
+Create or extend:
+- GET /awo/clients
+- POST /awo/clients
+- GET /awo/clients/{id}
+- GET /awo/clients/{id}/consultations
+- POST /awo/clients/{id}/notes
+- PUT /awo/clients/{id}/notes
+
+#### 3.2 Data Sources
+- clients table
+- consultations table
+- consultation_odu table
+- ire_osogbo table
+- ebo table
+- consultation_notes table
+
+#### 3.3 Access Control
+- Only Awo role can view or manage clients.
+- If Awo belongs to an Ifa House with entitlement:
+  - Show house-level clients.
+
+------------------------------------------------------------
+### 4. Integration Requirements
+
+#### 4.1 Integration with Awo Dashboard
+- “Open Client List” must open Client Management.
+
+#### 4.2 Integration with Consultation Workspace
+- Starting a consultation must redirect into Workspace.
+
+#### 4.3 Integration with Consultation History (Module 2E)
+- Client Profile must display full consultation history.
+
+#### 4.4 Integration with Scheduling
+- Upcoming consultations must link to Scheduling module.
+
+------------------------------------------------------------
+### 5. Testing Requirements (Complete Through Test)
+
+#### 5.1 Unit Tests
+- Client creation works.
+- Notes save and update correctly.
+- Consultation history loads correct data.
+
+#### 5.2 Integration Tests
+- Starting a consultation creates a record and redirects.
+- Client list filters and search work.
+- Profile view loads correct consultations.
+
+#### 5.3 UI Tests
+- Responsive layout works on desktop/tablet/mobile.
+- Tabs/collapsible sections behave correctly.
+- Empty states render correctly.
+
+------------------------------------------------------------
+### 6. Deliverables
+
+- Fully implemented Client Management module.
+- All backend endpoints functional.
+- All UI components styled and responsive.
+- All tests passing.
+- Integrated with Awo Dashboard, Scheduling, Consultation Workspace, and Consultation History.
+- Ready for Phase Group 3 (Smart Opele Integration).
+
+------------------------------------------------------------
+
+Complete this module fully and prepare for Phase Group 3.

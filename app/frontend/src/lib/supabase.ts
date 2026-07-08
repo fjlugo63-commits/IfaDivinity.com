@@ -49,6 +49,8 @@ export const TABLES = {
   botanica_items: 'app_340b9f1944_botanica_items',
   consultation_notes: 'app_340b9f1944_consultation_notes',
   consultation_summary: 'app_340b9f1944_consultation_summary',
+  clients: 'app_340b9f1944_clients',
+  client_notes: 'app_340b9f1944_client_notes',
   availability_blocks: 'app_340b9f1944_availability_blocks',
   availability_exceptions: 'app_340b9f1944_availability_exceptions',
   booking_requests: 'app_340b9f1944_booking_requests',
@@ -371,6 +373,33 @@ export interface DBBookingRequest {
   consultation_id: string | null;
   client_timezone: string;
   client_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Client Management types
+export interface DBClient {
+  id: string;
+  awo_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  timezone: string;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+  // Enriched fields from API
+  total_consultations?: number;
+  last_consultation_date?: string | null;
+  has_upcoming?: boolean;
+}
+
+export interface DBClientNote {
+  id: string;
+  client_id: string;
+  awo_id: string;
+  content: string;
+  formatted_content: string | null;
   created_at: string;
   updated_at: string;
 }
