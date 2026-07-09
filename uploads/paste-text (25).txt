@@ -1,0 +1,97 @@
+@atom.build_function
+name: consultEngine
+description: Full consult engine that uses edge_all_open_tabs metadata to evaluate consult readiness and gaps.
+inputs:
+  - edge_all_open_tabs: array
+  - clientIntake: object
+  - oduCast: object
+  - paymentIntent: object
+
+code:
+  const active = edge_all_open_tabs.find(t => t.isCurrent === true);
+  const stripeTab = edge_all_open_tabs.find(t =>
+    t.pageUrl.includes("dashboard.stripe.com") &&
+    t.pageUrl.includes("/test/")
+  );
+  const supabaseTab = edge_all_open_tabs.find(t =>
+    t.pageUrl.includes("supabase.com/dashboard") &&
+    t.pageTitle.includes("Ifa Divinity Marketplace")
+  );
+  const githubTab = edge_all_open_tabs.find(t =>
+    t.pageUrl.includes("github.com/fjlugo63-commits/ifadivinity")
+  );
+  const vercelTab = edge_all_open_tabs.find(t =>
+    t.pageUrl.includes("vercel.com/ifa-divinity-team")
+  );
+
+  const intakePhase = {
+    status: clientIntake ? "complete" : "missing",
+    data: clientIntake || null,
+    gaps: clientIntake ? [] : ["Client intake form not captured"]
+  };
+
+  const divinationPhase = {
+    status: oduCast ? "complete" : "missing",
+    data: oduCast || null,
+    gaps: oduCast ? [] : ["No Odu / casting data linked to consult"]
+  };
+
+  const paymentPhase = {
+    status: paymentIntent ? "ready" : (stripeTab ? "stripe-tab-open" : "missing"),
+    data: paymentIntent || null,
+    gaps: paymentIntent
+      ? []
+      : [
+          "No consult payment intent created; Stripe test dashboard is " +
+            (stripeTab ? "available" : "not open")
+        ]
+  };
+
+  const storagePhase = {
+    status: supabaseTab ? "supabase-tab-open" : "missing",
+    gaps: supabaseTab
+      ? []
+      : ["No Supabase ConsultSessions/Intake tables visible in current tabs"]
+  };
+
+  const deploymentPhase = {
+    status: githubTab && vercelTab ? "pipeline-visible" : "partial",
+    gaps: [
+      !githubTab && "GitHub repo not visible in current tabs",
+      !vercelTab && "Vercel project not visible in current tabs"
+    ].filter(Boolean)
+  };
+
+  const gaps = [
+    ...intakePhase.gaps,
+    ...divinationPhase.gaps,
+    ...paymentPhase.gaps,
+    ...storagePhase.gaps,
+    ...deploymentPhase.gaps
+  ];
+
+  return {
+    activeTab: {
+      title: active?.pageTitle || null,
+      url: active?.pageUrl || null,
+      tabId: active?.tabId || null
+    },
+    phases: {
+      intake: intakePhase,
+      divination: divinationPhase,
+      payment: paymentPhase,
+      storage: storagePhase,
+      deployment: deploymentPhase
+    },
+    environment: {
+      stripeTabOpen: !!stripeTab,
+      supabaseTabOpen: !!supabaseTab,
+      githubTabOpen: !!githubTab,
+      vercelTabOpen: !!vercelTab
+    },
+    consultReady:
+      intakePhase.status === "complete" &&
+      divinationPhase.status === "complete" &&
+      paymentPhase.status !== "missing",
+    gaps
+  };
