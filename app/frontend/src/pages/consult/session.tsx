@@ -7,9 +7,11 @@ import OduPanel from "@/components/consult/OduPanel";
 import IreOsogboPanel from "@/components/consult/IreOsogboPanel";
 import EboPanel from "@/components/consult/EboPanel";
 import NotesPanel from "@/components/consult/NotesPanel";
+import { useConsult } from "../../contexts/consultContext";
 
 export default function ConsultSession() {
   const navigate = useNavigate();
+  const { state, advance } = useConsult();
   const [odu, setOdu] = useState("");
   const [status, setStatus] = useState("");
   const [ebo, setEbo] = useState("");
@@ -22,7 +24,8 @@ export default function ConsultSession() {
     const sessionData = { odu, status, ebo, notes };
     // Store session data for summary page
     sessionStorage.setItem("consultOduCast", JSON.stringify(sessionData));
-    console.log("Consult finalized:", sessionData);
+    console.log("Consult finalized:", sessionData, "state:", state);
+    advance();
     navigate("/consult/summary");
   }
 
