@@ -49,6 +49,13 @@ const ClientProfilePage = lazy(() => import('./pages/ClientProfile'));
 const ClientConsultations = lazy(() => import('./pages/ClientConsultations'));
 const ClientBotanica = lazy(() => import('./pages/ClientBotanica'));
 
+// Consult flow pages
+const ConsultIntake = lazy(() => import('./pages/consult/intake'));
+const ConsultSessionPage = lazy(() => import('./pages/consult/session'));
+const ConsultSummary = lazy(() => import('./pages/consult/summary'));
+const ConsultPayment = lazy(() => import('./pages/consult/payment'));
+const ConsultHistoryPage = lazy(() => import('./pages/consult/history'));
+
 // Layouts (eager load for wrapping)
 import { ClientLayout } from './components/ClientLayout';
 import { AdminLayout } from './components/AdminLayout';
@@ -139,6 +146,13 @@ const AppRoutes = () => (
       {/* Auth routes */}
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/error" element={<AuthError />} />
+
+      {/* Consult flow routes */}
+      <Route path="/consult/intake" element={<ConsultIntake />} />
+      <Route path="/consult/session" element={<ConsultSessionPage />} />
+      <Route path="/consult/summary" element={<ConsultSummary />} />
+      <Route path="/consult/payment" element={<ConsultPayment />} />
+      <Route path="/consult/history" element={<ConsultHistoryPage />} />
 
       {/* System routes */}
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />
