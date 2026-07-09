@@ -1,19 +1,22 @@
+import { supabase } from "../../lib/supabaseClient";
 import { useConsult } from "../../contexts/consultContext";
 
 export default function ConsultPayment() {
   const { state, advance } = useConsult();
+  const sessionId = state.sessionId;
 
   async function startPayment() {
-    // Placeholder until Supabase + Stripe integration
     console.log("Redirecting to Stripe Checkout…");
-
-    // Simulate redirect
     window.location.href = "https://checkout.stripe.com/pay/test";
   }
 
   async function confirmPayment() {
-    // Placeholder for Supabase insert
-    console.log("Payment confirmed");
+    await supabase.from("consult_payments").insert({
+      session_id: sessionId,
+      stripe_payment_intent: "test_intent",
+      amount: 50,
+      status: "paid"
+    });
 
     advance(); // Move to COMPLETE
   }
