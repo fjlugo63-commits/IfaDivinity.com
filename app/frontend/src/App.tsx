@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
+import { ConsultProvider } from '@/contexts/consultContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Suspense, lazy } from 'react';
 
@@ -169,12 +170,14 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
-          <TooltipProvider>
-            <Toaster />
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </TooltipProvider>
+          <ConsultProvider>
+            <TooltipProvider>
+              <Toaster />
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </TooltipProvider>
+          </ConsultProvider>
         </CartProvider>
       </AuthProvider>
     </QueryClientProvider>
