@@ -1,0 +1,62 @@
+import { useState } from "react";
+
+export default function ConsultIntake() {
+  const [form, setForm] = useState({
+    clientName: "",
+    consultReason: "",
+    modality: "manual",
+    notes: "",
+    symptomsOrContext: ""
+  });
+
+  function updateField(e) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  async function submitIntake() {
+    // Module 6 will add Supabase insert here
+    console.log("Intake submitted:", form);
+  }
+
+  return (
+    <div className="p-6">
+      <h1 className="text-xl font-bold mb-4">Consult Intake</h1>
+
+      <input
+        name="clientName"
+        placeholder="Client Name"
+        value={form.clientName}
+        onChange={updateField}
+      />
+
+      <input
+        name="consultReason"
+        placeholder="Reason for Consult"
+        value={form.consultReason}
+        onChange={updateField}
+      />
+
+      <select name="modality" value={form.modality} onChange={updateField}>
+        <option value="manual">Manual</option>
+        <option value="opele">Opele</option>
+        <option value="ikin">Ikin</option>
+      </select>
+
+      <textarea
+        name="symptomsOrContext"
+        placeholder="Symptoms / Context"
+        value={form.symptomsOrContext}
+        onChange={updateField}
+      />
+
+      <textarea
+        name="notes"
+        placeholder="Notes"
+        value={form.notes}
+        onChange={updateField}
+      />
+
+      <button onClick={submitIntake}>Start Consultation</button>
+    </div>
+  );
+}

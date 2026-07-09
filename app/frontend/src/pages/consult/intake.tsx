@@ -11,106 +11,99 @@ export default function ConsultIntake() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     clientName: "",
-    email: "",
-    phone: "",
-    consultType: "",
-    reason: "",
+    consultReason: "",
+    modality: "manual",
     notes: "",
+    symptomsOrContext: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  function updateField(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  async function submitIntake(e: React.FormEvent) {
     e.preventDefault();
     // Store intake data in sessionStorage for the session page
+    // Module 6 will add Supabase insert here
     sessionStorage.setItem("consultIntake", JSON.stringify(form));
+    console.log("Intake submitted:", form);
     navigate("/consult/session");
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-lg shadow-lg border-amber-200">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-indigo-800 font-[Rubik]">
-            Consultation Intake
+            Consult Intake
           </CardTitle>
           <CardDescription className="text-gray-600">
-            Please provide your details to begin your consultation session.
+            Provide client details to begin the consultation session.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={submitIntake} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="clientName">Full Name *</Label>
+              <Label htmlFor="clientName">Client Name *</Label>
               <Input
                 id="clientName"
+                name="clientName"
                 required
                 value={form.clientName}
-                onChange={(e) => setForm({ ...form, clientName: e.target.value })}
-                placeholder="Enter your full name"
+                onChange={updateField}
+                placeholder="Client Name"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="consultReason">Reason for Consult *</Label>
               <Input
-                id="email"
-                type="email"
+                id="consultReason"
+                name="consultReason"
                 required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="your@email.com"
+                value={form.consultReason}
+                onChange={updateField}
+                placeholder="Reason for Consult"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="(555) 123-4567"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="consultType">Consultation Type *</Label>
+              <Label htmlFor="modality">Modality</Label>
               <Select
-                value={form.consultType}
-                onValueChange={(val) => setForm({ ...form, consultType: val })}
-                required
+                value={form.modality}
+                onValueChange={(val) => setForm({ ...form, modality: val })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
+                  <SelectValue placeholder="Select modality" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ifa-reading">Ifá Reading</SelectItem>
-                  <SelectItem value="orisa-consultation">Orisa Consultation</SelectItem>
-                  <SelectItem value="spiritual-guidance">Spiritual Guidance</SelectItem>
-                  <SelectItem value="ebo-prescription">Ebó Prescription</SelectItem>
-                  <SelectItem value="follow-up">Follow-up Session</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="opele">Opele</SelectItem>
+                  <SelectItem value="ikin">Ikin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reason">Reason for Consultation *</Label>
+              <Label htmlFor="symptomsOrContext">Symptoms / Context</Label>
               <Textarea
-                id="reason"
-                required
-                value={form.reason}
-                onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                placeholder="Briefly describe why you're seeking consultation..."
+                id="symptomsOrContext"
+                name="symptomsOrContext"
+                value={form.symptomsOrContext}
+                onChange={updateField}
+                placeholder="Symptoms / Context"
                 rows={3}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Additional Notes</Label>
+              <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
+                name="notes"
                 value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Any additional information..."
+                onChange={updateField}
+                placeholder="Notes"
                 rows={2}
               />
             </div>
@@ -119,7 +112,7 @@ export default function ConsultIntake() {
               type="submit"
               className="w-full bg-indigo-700 hover:bg-indigo-800 text-white"
             >
-              Begin Consultation
+              Start Consultation
             </Button>
           </form>
         </CardContent>
