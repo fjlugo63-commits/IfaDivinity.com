@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { nextState, type ConsultState } from "./consultState";
+import { nextState, type ConsultState } from "@/lib/consultState";
 
 interface ConsultContextValue {
   state: ConsultState;
