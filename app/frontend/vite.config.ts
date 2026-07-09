@@ -29,8 +29,12 @@ function ensureBuildOutDir() {
 
   return {
     name: 'ensure-build-out-dir',
+    enforce: 'pre' as const,
     configResolved(config) {
       outDir = path.resolve(config.root, config.build.outDir);
+    },
+    generateBundle() {
+      fs.mkdirSync(outDir, { recursive: true });
     },
     writeBundle() {
       fs.mkdirSync(outDir, { recursive: true });
@@ -55,6 +59,7 @@ export default defineConfig(({ command }) => {
         lastmod: getSitemapLastmod(),
         readable: true,
         generateRobotsTxt: true,
+        outDir: path.resolve(__dirname, 'dist'),
       }),
       ...(blogPrerenderRoutes.length > 0
         ? vitePrerenderPlugin({

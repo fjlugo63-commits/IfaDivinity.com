@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabase";
 import { useConsult } from "../../contexts/consultContext";
 
 export default function ConsultPayment() {
