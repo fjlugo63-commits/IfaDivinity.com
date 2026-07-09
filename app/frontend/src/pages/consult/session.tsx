@@ -40,7 +40,7 @@ export default function ConsultSession() {
                 Consult Session
               </CardTitle>
               <Badge variant="outline" className="border-green-500 text-green-700">
-                In Progress
+                {state}
               </Badge>
             </div>
           </CardHeader>
