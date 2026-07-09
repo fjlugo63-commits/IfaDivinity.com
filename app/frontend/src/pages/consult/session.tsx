@@ -39,9 +39,14 @@ export default function ConsultSession() {
               <CardTitle className="text-xl font-[Rubik] text-indigo-800">
                 Consult Session
               </CardTitle>
-              <Badge variant="outline" className="border-green-500 text-green-700">
-                {state}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-green-500 text-green-700">
+                  {state}
+                </Badge>
+                <Button size="sm" variant="outline" onClick={advance}>
+                  Next Phase
+                </Button>
+              </div>
             </div>
           </CardHeader>
           {intake.clientName && (
