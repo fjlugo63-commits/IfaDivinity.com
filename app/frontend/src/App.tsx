@@ -41,6 +41,7 @@ const ContributionPortal = lazy(() => import('./pages/ContributionPortal'));
 const HousePortal = lazy(() => import('./pages/HousePortal'));
 const AwoDirectory = lazy(() => import('./pages/AwoDirectory'));
 const DivinationHistory = lazy(() => import('./pages/DivinationHistory'));
+const AiConsultation = lazy(() => import('./pages/AiConsultation'));
 const PublicConsultation = lazy(() => import('./pages/PublicConsultation'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
@@ -190,6 +191,9 @@ const AppRoutes = () => (
 
       {/* Public divination history & analytics */}
       <Route path="/divination-history" element={<DivinationHistory />} />
+
+      {/* Public AI-augmented consultation */}
+      <Route path="/ai-consultation" element={<AiConsultation />} />
 
       {/* System routes */}
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />

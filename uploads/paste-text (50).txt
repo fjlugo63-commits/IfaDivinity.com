@@ -1,0 +1,213 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_awo_ai_tools",
+      "description": "Private Awo-only AI reasoning suite for advanced semantic, predictive, and lineage intelligence.",
+      "auth": {
+        "requiredRole": "awo"
+      },
+      "screens": [
+        {
+          "name": "awo_ai_dashboard",
+          "type": "page",
+          "description": "Awo-only dashboard providing access to advanced AI tools.",
+          "content": {
+            "header": "Awo AI Tools",
+            "body": "Access advanced semantic reasoning, lineage intelligence, predictive modeling, and ebo optimization tools."
+          },
+          "actions": [
+            {
+              "name": "open_semantic_explorer",
+              "label": "Semantic Odu Explorer",
+              "type": "navigate",
+              "target": "awo_semantic_explorer"
+            },
+            {
+              "name": "open_lineage_intelligence",
+              "label": "Lineage Intelligence",
+              "type": "navigate",
+              "target": "awo_lineage_intelligence"
+            },
+            {
+              "name": "open_predictive_console",
+              "label": "Predictive Console",
+              "type": "navigate",
+              "target": "awo_predictive_console"
+            },
+            {
+              "name": "open_ebo_optimizer",
+              "label": "Ebo Optimization Console",
+              "type": "navigate",
+              "target": "awo_ebo_optimizer"
+            }
+          ]
+        },
+
+        {
+          "name": "awo_semantic_explorer",
+          "type": "form",
+          "description": "Explore semantic graph relationships for any Odu.",
+          "fields": [
+            {
+              "name": "house_id",
+              "label": "House",
+              "type": "select",
+              "entity": "house_profile",
+              "displayField": "name"
+            },
+            {
+              "name": "query",
+              "label": "Semantic Query",
+              "type": "text",
+              "placeholder": "e.g., Show relationships around Odi Meji"
+            }
+          ],
+          "actions": [
+            {
+              "name": "run_semantic_query",
+              "label": "Run Semantic Query",
+              "type": "apiCall",
+              "endpoint": "/api/odu/query",
+              "method": "POST",
+              "payload": {
+                "house_id": "{{house_id}}",
+                "query": "{{query}}"
+              },
+              "assign": "results"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "semantic_results",
+              "label": "Semantic Graph Results",
+              "value": "{{results.results}}"
+            }
+          ]
+        },
+
+        {
+          "name": "awo_lineage_intelligence",
+          "type": "form",
+          "description": "Access lineage-specific insights and cluster intelligence.",
+          "fields": [
+            {
+              "name": "house_id",
+              "label": "House",
+              "type": "select",
+              "entity": "house_profile",
+              "displayField": "name"
+            },
+            {
+              "name": "query",
+              "label": "Lineage Query",
+              "type": "text",
+              "placeholder": "e.g., What patterns appear for Obara in this house?"
+            }
+          ],
+          "actions": [
+            {
+              "name": "run_lineage_insights",
+              "label": "Run Lineage Insights",
+              "type": "apiCall",
+              "endpoint": "/api/lineage/insights",
+              "method": "POST",
+              "payload": {
+                "house_id": "{{house_id}}",
+                "query": "{{query}}"
+              },
+              "assign": "insights"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "lineage_insights",
+              "label": "Lineage Insights",
+              "value": "{{insights.insights}}"
+            }
+          ]
+        },
+
+        {
+          "name": "awo_predictive_console",
+          "type": "form",
+          "description": "Run predictive outcome modeling for any consultation.",
+          "fields": [
+            {
+              "name": "consultation_record_id",
+              "label": "Consultation Record",
+              "type": "select",
+              "entity": "consultation_record",
+              "displayField": "id"
+            }
+          ],
+          "actions": [
+            {
+              "name": "run_prediction",
+              "label": "Run Prediction",
+              "type": "apiCall",
+              "endpoint": "/api/predict/outcome",
+              "method": "POST",
+              "payload": {
+                "consultation_record_id": "{{consultation_record_id}}"
+              },
+              "assign": "prediction"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "prediction",
+              "label": "Predicted Outcome",
+              "value": "{{prediction.prediction}}"
+            },
+            {
+              "name": "prediction_explanation",
+              "label": "Explanation",
+              "value": "{{prediction.prediction_explanation}}"
+            }
+          ]
+        },
+
+        {
+          "name": "awo_ebo_optimizer",
+          "type": "form",
+          "description": "Run ebo optimization for any consultation.",
+          "fields": [
+            {
+              "name": "consultation_record_id",
+              "label": "Consultation Record",
+              "type": "select",
+              "entity": "consultation_record",
+              "displayField": "id"
+            }
+          ],
+          "actions": [
+            {
+              "name": "run_ebo_optimization",
+              "label": "Optimize Ebo",
+              "type": "apiCall",
+              "endpoint": "/api/ebo/optimize",
+              "method": "POST",
+              "payload": {
+                "consultation_record_id": "{{consultation_record_id}}"
+              },
+              "assign": "ebo"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "optimal_ebo",
+              "label": "Optimal Ebo",
+              "value": "{{ebo.optimal_ebo}}"
+            },
+            {
+              "name": "ebo_scores",
+              "label": "Ebo Scores",
+              "value": "{{ebo.ebo_scores}}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
