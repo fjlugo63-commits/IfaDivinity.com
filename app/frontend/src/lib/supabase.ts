@@ -55,6 +55,17 @@ export const TABLES = {
   availability_exceptions: 'app_340b9f1944_availability_exceptions',
   booking_requests: 'app_340b9f1944_booking_requests',
   messages: 'app_340b9f1944_messages',
+  // New entity tables from defineLogicModules spec
+  house_profile: 'house_profile',
+  awo_profile: 'awo_profile',
+  consecration_mapping: 'consecration_mapping',
+  consultation_record: 'consultation_record',
+  house_odu_rule: 'house_odu_rule',
+  rule_version: 'rule_version',
+  odu_name_map: 'odu_name_map',
+  audit_log: 'audit_log',
+  rule_change_proposal: 'rule_change_proposal',
+  consult_engine_config: 'consult_engine_config',
 } as const;
 
 // Product type matching actual DB schema

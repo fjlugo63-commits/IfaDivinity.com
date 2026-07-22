@@ -1,0 +1,211 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "rule_proposal_create",
+      "description": "Create a new rule change proposal for a house.",
+      "inputs": {
+        "house_id": "uuid",
+        "proposed_by": "uuid",
+        "changes": "json"
+      },
+      "steps": [
+        {
+          "action": "insert",
+          "entity": "rule_change_proposal",
+          "values": {
+            "house_id": "{{house_id}}",
+            "proposed_by": "{{proposed_by}}",
+            "changes": "{{changes}}",
+            "status": "pending"
+          },
+          "assign": "proposal"
+        },
+        {
+          "action": "insert",
+          "entity": "audit_log",
+          "values": {
+            "actor_id": "{{proposed_by}}",
+            "action": "rule_proposal_created",
+            "entity": "rule_change_proposal",
+            "entity_id": "{{proposal.id}}",
+            "payload": "{{changes}}"
+          }
+        }
+      ],
+      "outputs": {
+        "proposal_id": "{{proposal.id}}"
+      }
+    },
+
+    {
+      "module": "rule_proposal_review",
+      "description": "Moderators review a proposed rule change.",
+      "inputs": {
+        "proposal_id": "uuid",
+        "reviewer_id": "uuid",
+        "review_notes": "json"
+      },
+      "steps": [
+        {
+          "action": "update",
+          "entity": "rule_change_proposal",
+          "where": { "id": "{{proposal_id}}" },
+          "values": {
+            "status": "reviewed",
+            "updated_at": "now"
+          }
+        },
+        {
+          "action": "insert",
+          "entity": "audit_log",
+          "values": {
+            "actor_id": "{{reviewer_id}}",
+            "action": "rule_proposal_reviewed",
+            "entity": "rule_change_proposal",
+            "entity_id": "{{proposal_id}}",
+            "payload": "{{review_notes}}"
+          }
+        }
+      ],
+      "outputs": {
+        "proposal_id": "{{proposal_id}}",
+        "status": "reviewed"
+      }
+    },
+
+    {
+      "module": "rule_proposal_approve",
+      "description": "Awo council approves a rule change and creates a new rule_version.",
+      "inputs": {
+        "proposal_id": "uuid",
+        "approver_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "rule_change_proposal",
+          "where": { "id": "{{proposal_id}}" },
+          "assign": "proposal"
+        },
+        {
+          "action": "fetch",
+          "entity": "rule_version",
+          "where": { "house_id": "{{proposal.house_id}}" },
+          "orderBy": "version_number DESC",
+          "limit": 1,
+          "assign": "latest_version"
+        },
+        {
+          "action": "insert",
+          "entity": "rule_version",
+          "values": {
+            "house_id": "{{proposal.house_id}}",
+            "version_number": "{{latest_version.version_number + 1}}",
+            "status": "approved",
+            "created_by": "{{proposal.proposed_by}}",
+            "approved_by": "{{approver_id}}"
+          },
+          "assign": "new_version"
+        },
+        {
+          "action": "update",
+          "entity": "rule_change_proposal",
+          "where": { "id": "{{proposal_id}}" },
+          "values": {
+            "status": "approved",
+            "updated_at": "now"
+          }
+        },
+        {
+          "action": "insert",
+          "entity": "audit_log",
+          "values": {
+            "actor_id": "{{approver_id}}",
+            "action": "rule_proposal_approved",
+            "entity": "rule_change_proposal",
+            "entity_id": "{{proposal_id}}",
+            "payload": "{{new_version.id}}"
+          }
+        }
+      ],
+      "outputs": {
+        "rule_version_id": "{{new_version.id}}",
+        "proposal_id": "{{proposal_id}}",
+        "status": "approved"
+      }
+    },
+
+    {
+      "module": "rule_proposal_reject",
+      "description": "Reject a proposed rule change.",
+      "inputs": {
+        "proposal_id": "uuid",
+        "rejector_id": "uuid",
+        "reason": "json"
+      },
+      "steps": [
+        {
+          "action": "update",
+          "entity": "rule_change_proposal",
+          "where": { "id": "{{proposal_id}}" },
+          "values": {
+            "status": "rejected",
+            "updated_at": "now"
+          }
+        },
+        {
+          "action": "insert",
+          "entity": "audit_log",
+          "values": {
+            "actor_id": "{{rejector_id}}",
+            "action": "rule_proposal_rejected",
+            "entity": "rule_change_proposal",
+            "entity_id": "{{proposal_id}}",
+            "payload": "{{reason}}"
+          }
+        }
+      ],
+      "outputs": {
+        "proposal_id": "{{proposal_id}}",
+        "status": "rejected"
+      }
+    },
+
+    {
+      "module": "activate_rule_version",
+      "description": "Set a rule_version as the active version for a house.",
+      "inputs": {
+        "house_id": "uuid",
+        "rule_version_id": "uuid",
+        "actor_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "update",
+          "entity": "consult_engine_config",
+          "where": { "house_id": "{{house_id}}" },
+          "values": {
+            "active_rule_version_id": "{{rule_version_id}}",
+            "updated_at": "now"
+          }
+        },
+        {
+          "action": "insert",
+          "entity": "audit_log",
+          "values": {
+            "actor_id": "{{actor_id}}",
+            "action": "rule_version_activated",
+            "entity": "consult_engine_config",
+            "entity_id": "{{house_id}}",
+            "payload": "{{rule_version_id}}"
+          }
+        }
+      ],
+      "outputs": {
+        "house_id": "{{house_id}}",
+        "active_rule_version_id": "{{rule_version_id}}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "opele_cast_mapping",
+      "description": "Apply awo-specific consecration mapping to raw Opele bits to produce canonical mapped_bits.",
+      "inputs": {
+        "raw_bits": "string",
+        "awo_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consecration_mapping",
+          "where": { "awo_id": "{{awo_id}}" },
+          "assign": "mapping"
+        },
+        {
+          "action": "transform",
+          "operation": "applyMapping",
+          "input": "{{raw_bits}}",
+          "mapping": "{{mapping.physical_index_to_canonical}}",
+          "assign": "mapped_bits"
+        }
+      ],
+      "outputs": {
+        "mapped_bits": "string"
+      }
+    },
+
+    {
+      "module": "pattern_key_generation",
+      "description": "Convert mapped_bits into pattern_key and pattern_index.",
+      "inputs": {
+        "mapped_bits": "string"
+      },
+      "steps": [
+        {
+          "action": "transform",
+          "operation": "stringifyBits",
+          "input": "{{mapped_bits}}",
+          "assign": "pattern_key"
+        },
+        {
+          "action": "transform",
+          "operation": "binaryToIndex",
+          "input": "{{mapped_bits}}",
+          "assign": "pattern_index"
+        }
+      ],
+      "outputs": {
+        "pattern_key": "string",
+        "pattern_index": "integer"
+      }
+    },
+
+    {
+      "module": "odu_lookup",
+      "description": "Lookup Odu results using house tradition, pattern_key, and active rule_version.",
+      "inputs": {
+        "house_id": "uuid",
+        "pattern_key": "string"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consult_engine_config",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "engine_config"
+        },
+        {
+          "action": "fetch",
+          "entity": "house_odu_rule",
+          "where": {
+            "house_id": "{{house_id}}",
+            "rule_version_id": "{{engine_config.active_rule_version_id}}",
+            "pattern_key": "{{pattern_key}}"
+          },
+          "assign": "rule"
+        }
+      ],
+      "outputs": {
+        "main_odu": "string",
+        "ire_or_osogbo": "string",
+        "subtype": "string",
+        "orisha_owner": "string",
+        "recommended_ebo": "json",
+        "rule_version_id": "uuid"
+      },
+      "outputMapping": {
+        "main_odu": "{{rule.odu_code}}",
+        "ire_or_osogbo": "{{rule.result}}",
+        "subtype": "{{rule.subtype}}",
+        "orisha_owner": "{{rule.combined_name}}",
+        "recommended_ebo": "{{rule.recommended_ebo}}",
+        "rule_version_id": "{{rule.rule_version_id}}"
+      }
+    },
+
+    {
+      "module": "consultation_record_writer",
+      "description": "Write full consultation record to database.",
+      "inputs": {
+        "awo_id": "uuid",
+        "house_id": "uuid",
+        "raw_bits": "string",
+        "mapped_bits": "string",
+        "pattern_key": "string",
+        "pattern_index": "integer",
+        "main_odu": "string",
+        "ire_or_osogbo": "string",
+        "subtype": "string",
+        "orisha_owner": "string",
+        "recommended_ebo": "json",
+        "rule_version_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "insert",
+          "entity": "consultation_record",
+          "values": {
+            "awo_id": "{{awo_id}}",
+            "house_id": "{{house_id}}",
+            "raw_bits": "{{raw_bits}}",
+            "mapped_bits": "{{mapped_bits}}",
+            "pattern_key": "{{pattern_key}}",
+            "pattern_index": "{{pattern_index}}",
+            "main_odu": "{{main_odu}}",
+            "ire_or_osogbo": "{{ire_or_osogbo}}",
+            "subtype": "{{subtype}}",
+            "orisha_owner": "{{orisha_owner}}",
+            "recommended_ebo": "{{recommended_ebo}}",
+            "rule_version_id": "{{rule_version_id}}"
+          },
+          "assign": "consultation_record"
+        }
+      ],
+      "outputs": {
+        "consultation_record_id": "{{consultation_record.id}}"
+      }
+    },
+
+    {
+      "module": "consult_engine",
+      "description": "Unified engine that performs full Opele consultation.",
+      "inputs": {
+        "raw_bits": "string",
+        "awo_id": "uuid",
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "callModule",
+          "module": "opele_cast_mapping",
+          "inputs
