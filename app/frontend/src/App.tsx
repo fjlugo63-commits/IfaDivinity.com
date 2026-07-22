@@ -38,6 +38,7 @@ const AdminEngineConfig = lazy(() => import('./pages/admin/AdminEngineConfig'));
 const AdminTestHarness = lazy(() => import('./pages/admin/AdminTestHarness'));
 const AdminModeration = lazy(() => import('./pages/admin/AdminModeration'));
 const ContributionPortal = lazy(() => import('./pages/ContributionPortal'));
+const HousePortal = lazy(() => import('./pages/HousePortal'));
 const PublicConsultation = lazy(() => import('./pages/PublicConsultation'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
@@ -178,6 +179,9 @@ const AppRoutes = () => (
 
       {/* Public contribution portal */}
       <Route path="/contribute" element={<ContributionPortal />} />
+
+      {/* Public house portal */}
+      <Route path="/houses" element={<HousePortal />} />
 
       {/* System routes */}
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />

@@ -1,0 +1,173 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_public_awo_directory",
+      "description": "Public-facing directory of certified Awo with verification and lineage profiles.",
+      "screens": [
+        {
+          "name": "awo_directory_landing",
+          "type": "page",
+          "description": "Landing page introducing the Awo directory.",
+          "content": {
+            "header": "Certified Awo Directory",
+            "body": "Explore verified Awo across all participating houses. View lineage, tradition, and certification status."
+          },
+          "actions": [
+            {
+              "name": "browse_awos",
+              "label": "Browse Awo",
+              "type": "navigate",
+              "target": "awo_directory_list"
+            }
+          ]
+        },
+
+        {
+          "name": "awo_directory_list",
+          "type": "list",
+          "description": "List of all certified Awo.",
+          "entity": "awo_profile",
+          "filters": [
+            "house_id",
+            "lineage",
+            "certification_status"
+          ],
+          "fields": [
+            "user_id",
+            "house_id",
+            "lineage",
+            "certification_status",
+            "updated_at"
+          ],
+          "actions": [
+            {
+              "name": "view_awo",
+              "label": "View",
+              "type": "navigate",
+              "target": "awo_directory_detail",
+              "params": {
+                "awo_id": "{{id}}"
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "awo_directory_detail",
+          "type": "page",
+          "description": "Full detail view of a certified Awo including lineage, house, and verification.",
+          "logic": [
+            {
+              "action": "fetch",
+              "entity": "awo_profile",
+              "where": { "id": "{{params.awo_id}}" },
+              "assign": "awo"
+            },
+            {
+              "action": "fetch",
+              "entity": "house_profile",
+              "where": { "id": "{{awo.house_id}}" },
+              "assign": "house"
+            },
+            {
+              "action": "apiCall",
+              "endpoint": "/awo/certificationStatus/{{params.awo_id}}",
+              "method": "GET",
+              "assign": "cert"
+            }
+          ],
+          "fields": [
+            {
+              "name": "user_id",
+              "label": "Awo User ID",
+              "type": "display",
+              "value": "{{awo.user_id}}"
+            },
+            {
+              "name": "house_name",
+              "label": "House",
+              "type": "display",
+              "value": "{{house.name}}"
+            },
+            {
+              "name": "tradition",
+              "label": "Tradition",
+              "type": "display",
+              "value": "{{house.tradition}}"
+            },
+            {
+              "name": "lineage",
+              "label": "Lineage",
+              "type": "display",
+              "value": "{{awo.lineage}}"
+            },
+            {
+              "name": "certification_status",
+              "label": "Certification Status",
+              "type": "display",
+              "value": "{{cert.certified}}"
+            },
+            {
+              "name": "certificate_url",
+              "label": "Certificate",
+              "type": "display",
+              "value": "{{cert.certificate_url}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "verify_awo",
+              "label": "Verify Awo",
+              "type": "navigate",
+              "target": "awo_verification",
+              "params": {
+                "awo_id": "{{params.awo_id}}"
+              }
+            },
+            {
+              "name": "back_to_directory",
+              "label": "Back to Directory",
+              "type": "navigate",
+              "target": "awo_directory_list"
+            }
+          ]
+        },
+
+        {
+          "name": "awo_verification",
+          "type": "form",
+          "description": "Public verification form for confirming Awo authenticity.",
+          "fields": [
+            {
+              "name": "verification_code",
+              "label": "Verification Code",
+              "type": "text"
+            }
+          ],
+          "actions": [
+            {
+              "name": "verify",
+              "label": "Verify",
+              "type": "apiCall",
+              "endpoint": "/awo/verify",
+              "method": "POST",
+              "payload": {
+                "awo_id": "{{params.awo_id}}",
+                "verification_code": "{{verification_code}}"
+              },
+              "assign": "verification"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "verification_status",
+              "label": "Verification Status",
+              "value": "{{verification.status}}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
