@@ -1,0 +1,173 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "consultation_enrichment",
+      "description": "Enrich consultation record with house tradition naming, Odu variants, and lineage metadata.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "fetch",
+          "entity": "house_profile",
+          "where": { "id": "{{record.house_id}}" },
+          "assign": "house"
+        },
+        {
+          "action": "fetch",
+          "entity": "odu_name_map",
+          "where": { "odu_code": "{{record.main_odu}}" },
+          "assign": "odu_map"
+        },
+        {
+          "action": "transform",
+          "operation": "selectTraditionName",
+          "input": {
+            "tradition": "{{house.tradition}}",
+            "yoruba_name": "{{odu_map.yoruba_name}}",
+            "lukumi_name": "{{odu_map.lukumi_name}}"
+          },
+          "assign": "odu_display_name"
+        },
+        {
+          "action": "update",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "values": {
+            "main_odu": "{{odu_display_name}}"
+          }
+        }
+      ],
+      "outputs": {
+        "consultation_record_id": "{{consultation_record_id}}",
+        "main_odu_display": "{{odu_display_name}}"
+      }
+    },
+
+    {
+      "module": "consultation_audit_log",
+      "description": "Create audit log entry for consultation.",
+      "inputs": {
+        "consultation_record_id": "uuid",
+        "actor_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "insert",
+          "entity": "audit_log",
+          "values": {
+            "actor_id": "{{actor_id}}",
+            "action": "consultation_performed",
+            "entity": "consultation_record",
+            "entity_id": "{{consultation_record_id}}",
+            "payload": {
+              "main_odu": "{{record.main_odu}}",
+              "ire_or_osogbo": "{{record.ire_or_osogbo}}",
+              "subtype": "{{record.subtype}}",
+              "orisha_owner": "{{record.orisha_owner}}"
+            }
+          }
+        }
+      ],
+      "outputs": {
+        "audit_logged": true
+      }
+    },
+
+    {
+      "module": "consultation_indexer",
+      "description": "Generate searchable index metadata for analytics and certification.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "transform",
+          "operation": "generateIndex",
+          "input": {
+            "main_odu": "{{record.main_odu}}",
+            "ire_or_osogbo": "{{record.ire_or_osogbo}}",
+            "subtype": "{{record.subtype}}",
+            "pattern_index": "{{record.pattern_index}}"
+          },
+          "assign": "index_blob"
+        },
+        {
+          "action": "insert",
+          "entity": "audit_log",
+          "values": {
+            "actor_id": "{{record.awo_id}}",
+            "action": "consultation_indexed",
+            "entity": "consultation_record",
+            "entity_id": "{{consultation_record_id}}",
+            "payload": "{{index_blob}}"
+          }
+        }
+      ],
+      "outputs": {
+        "indexed": true
+      }
+    },
+
+    {
+      "module": "consultation_logging_pipeline",
+      "description": "Unified pipeline: enrich → audit → index.",
+      "inputs": {
+        "consultation_record_id": "uuid",
+        "actor_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "callModule",
+          "module": "consultation_enrichment",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}"
+          },
+          "assign": "enriched"
+        },
+        {
+          "action": "callModule",
+          "module": "consultation_audit_log",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}",
+            "actor_id": "{{actor_id}}"
+          },
+          "assign": "audit"
+        },
+        {
+          "action": "callModule",
+          "module": "consultation_indexer",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}"
+          },
+          "assign": "indexed"
+        }
+      ],
+      "outputs": {
+        "consultation_record_id": "{{consultation_record_id}}",
+        "enriched": "{{enriched.main_odu_display}}",
+        "audit_logged": "{{audit.audit_logged}}",
+        "indexed": "{{indexed.indexed}}"
+      }
+    }
+  ]
+}
