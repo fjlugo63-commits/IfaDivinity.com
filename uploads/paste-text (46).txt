@@ -1,0 +1,190 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "odu_semantic_context_builder",
+      "description": "Builds semantic context for an Odu using lineage graph, semantic graph, and historical outcomes.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "fetch",
+          "entity": "lineage_semantic_graph",
+          "where": { "house_id": "{{record.house_id}}" },
+          "assign": "lineage_graph"
+        },
+        {
+          "action": "fetch",
+          "entity": "odu_semantic_graph",
+          "where": { "house_id": "{{record.house_id}}" },
+          "assign": "odu_graph"
+        },
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "house_id": "{{record.house_id}}" },
+          "assign": "history"
+        },
+        {
+          "action": "transform",
+          "operation": "buildOduSemanticContext",
+          "input": {
+            "main_odu": "{{record.main_odu}}",
+            "ire_or_osogbo": "{{record.ire_or_osogbo}}",
+            "subtype": "{{record.subtype}}",
+            "orisha_owner": "{{record.orisha_owner}}",
+            "lineage_graph": "{{lineage_graph.graph}}",
+            "odu_graph": "{{odu_graph.graph}}",
+            "history": "{{history}}"
+          },
+          "assign": "context"
+        }
+      ],
+      "outputs": {
+        "semantic_context": "{{context}}"
+      }
+    },
+
+    {
+      "module": "odu_reasoning_engine",
+      "description": "Generates semantic reasoning, interpretations, and lineage-aware insights for an Odu.",
+      "inputs": {
+        "semantic_context": "json",
+        "query": "string"
+      },
+      "steps": [
+        {
+          "action": "transform",
+          "operation": "reasonOverOdu",
+          "input": {
+            "context": "{{semantic_context}}",
+            "query": "{{query}}"
+          },
+          "assign": "reasoning"
+        }
+      ],
+      "outputs": {
+        "reasoning": "{{reasoning}}"
+      }
+    },
+
+    {
+      "module": "odu_reasoning_expander",
+      "description": "Expands reasoning using semantic graph pathways, lineage clusters, and historical correlations.",
+      "inputs": {
+        "house_id": "uuid",
+        "reasoning": "json"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "lineage_cluster_model",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "clusters"
+        },
+        {
+          "action": "fetch",
+          "entity": "lineage_semantic_graph",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "lineage_graph"
+        },
+        {
+          "action": "transform",
+          "operation": "expandReasoning",
+          "input": {
+            "reasoning": "{{reasoning}}",
+            "clusters": "{{clusters.clusters}}",
+            "lineage_graph": "{{lineage_graph.graph}}"
+          },
+          "assign": "expanded"
+        }
+      ],
+      "outputs": {
+        "expanded_reasoning": "{{expanded}}"
+      }
+    },
+
+    {
+      "module": "odu_ai_interpretation_generator",
+      "description": "Generates AI-augmented interpretations based on expanded reasoning and semantic context.",
+      "inputs": {
+        "expanded_reasoning": "json"
+      },
+      "steps": [
+        {
+          "action": "transform",
+          "operation": "generateAIInterpretation",
+          "input": "{{expanded_reasoning}}",
+          "assign": "interpretation"
+        }
+      ],
+      "outputs": {
+        "ai_interpretation": "{{interpretation}}"
+      }
+    },
+
+    {
+      "module": "semantic_odu_reasoner_pipeline",
+      "description": "Unified pipeline: context → reasoning → expansion → AI interpretation.",
+      "inputs": {
+        "consultation_record_id": "uuid",
+        "query": "string"
+      },
+      "steps": [
+        {
+          "action": "callModule",
+          "module": "odu_semantic_context_builder",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}"
+          },
+          "assign": "context"
+        },
+        {
+          "action": "callModule",
+          "module": "odu_reasoning_engine",
+          "inputs": {
+            "semantic_context": "{{context.semantic_context}}",
+            "query": "{{query}}"
+          },
+          "assign": "reasoning"
+        },
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "callModule",
+          "module": "odu_reasoning_expander",
+          "inputs": {
+            "house_id": "{{record.house_id}}",
+            "reasoning": "{{reasoning.reasoning}}"
+          },
+          "assign": "expanded"
+        },
+        {
+          "action": "callModule",
+          "module": "odu_ai_interpretation_generator",
+          "inputs": {
+            "expanded_reasoning": "{{expanded.expanded_reasoning}}"
+          },
+          "assign": "interpretation"
+        }
+      ],
+      "outputs": {
+        "semantic_context": "{{context.semantic_context}}",
+        "reasoning": "{{reasoning.reasoning}}",
+        "expanded_reasoning": "{{expanded.expanded_reasoning}}",
+        "ai_interpretation": "{{interpretation.ai_interpretation}}"
+      }
+    }
+  ]
+}
