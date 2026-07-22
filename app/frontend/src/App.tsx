@@ -35,6 +35,7 @@ const AdminRuleVersions = lazy(() => import('./pages/admin/AdminRuleVersions'));
 const AdminConsultationViewer = lazy(() => import('./pages/admin/AdminConsultationViewer'));
 const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
 const AdminEngineConfig = lazy(() => import('./pages/admin/AdminEngineConfig'));
+const AdminTestHarness = lazy(() => import('./pages/admin/AdminTestHarness'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
 const AwoDashboard = lazy(() => import('./pages/AwoDashboard'));
@@ -150,6 +151,7 @@ const AppRoutes = () => (
         <Route path="engine/consultations" element={<AdminConsultationViewer />} />
         <Route path="engine/audit" element={<AdminAuditLogs />} />
         <Route path="engine/config" element={<AdminEngineConfig />} />
+        <Route path="engine/test-harness" element={<AdminTestHarness />} />
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
 

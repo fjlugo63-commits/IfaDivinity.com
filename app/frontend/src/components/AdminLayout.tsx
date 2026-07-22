@@ -36,6 +36,7 @@ const engineItems = [
   { label: 'Consultations', path: '/admin/engine/consultations', icon: Calendar },
   { label: 'Audit Logs', path: '/admin/engine/audit', icon: Settings },
   { label: 'Engine Config', path: '/admin/engine/config', icon: Settings },
+  { label: 'Test Harness', path: '/admin/engine/test-harness', icon: Shield },
 ];
 
 export function AdminLayout() {
