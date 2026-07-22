@@ -40,6 +40,7 @@ const AdminModeration = lazy(() => import('./pages/admin/AdminModeration'));
 const ContributionPortal = lazy(() => import('./pages/ContributionPortal'));
 const HousePortal = lazy(() => import('./pages/HousePortal'));
 const AwoDirectory = lazy(() => import('./pages/AwoDirectory'));
+const DivinationHistory = lazy(() => import('./pages/DivinationHistory'));
 const PublicConsultation = lazy(() => import('./pages/PublicConsultation'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
@@ -186,6 +187,9 @@ const AppRoutes = () => (
 
       {/* Public Awo directory */}
       <Route path="/awo-directory" element={<AwoDirectory />} />
+
+      {/* Public divination history & analytics */}
+      <Route path="/divination-history" element={<DivinationHistory />} />
 
       {/* System routes */}
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />
