@@ -1,0 +1,218 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "lineage_feature_extraction",
+      "description": "Extract semantic and statistical features from consultation records for lineage modeling.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "transform",
+          "operation": "extractFeatures",
+          "input": {
+            "main_odu": "{{record.main_odu}}",
+            "ire_or_osogbo": "{{record.ire_or_osogbo}}",
+            "subtype": "{{record.subtype}}",
+            "orisha_owner": "{{record.orisha_owner}}",
+            "recommended_ebo": "{{record.recommended_ebo}}",
+            "pattern_index": "{{record.pattern_index}}",
+            "house_id": "{{record.house_id}}",
+            "awo_id": "{{record.awo_id}}"
+          },
+          "assign": "features"
+        },
+        {
+          "action": "insert",
+          "entity": "lineage_feature_vector",
+          "values": {
+            "consultation_record_id": "{{consultation_record_id}}",
+            "features": "{{features}}"
+          },
+          "assign": "vector"
+        }
+      ],
+      "outputs": {
+        "feature_vector_id": "{{vector.id}}"
+      }
+    },
+
+    {
+      "module": "lineage_cluster_model",
+      "description": "Cluster lineage feature vectors to identify lineage-specific patterns.",
+      "inputs": {
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "lineage_feature_vector",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "vectors"
+        },
+        {
+          "action": "transform",
+          "operation": "clusterVectors",
+          "input": "{{vectors}}",
+          "assign": "clusters"
+        },
+        {
+          "action": "insert",
+          "entity": "lineage_cluster_model",
+          "values": {
+            "house_id": "{{house_id}}",
+            "clusters": "{{clusters}}"
+          },
+          "assign": "model"
+        }
+      ],
+      "outputs": {
+        "model_id": "{{model.id}}",
+        "clusters": "{{clusters}}"
+      }
+    },
+
+    {
+      "module": "lineage_semantic_graph",
+      "description": "Build semantic graph relationships between Odu, ebo, outcomes, and lineage patterns.",
+      "inputs": {
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "lineage_cluster_model",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "model"
+        },
+        {
+          "action": "fetch",
+          "entity": "lineage_feature_vector",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "vectors"
+        },
+        {
+          "action": "transform",
+          "operation": "buildSemanticGraph",
+          "input": {
+            "clusters": "{{model.clusters}}",
+            "vectors": "{{vectors}}"
+          },
+          "assign": "graph"
+        },
+        {
+          "action": "insert",
+          "entity": "lineage_semantic_graph",
+          "values": {
+            "house_id": "{{house_id}}",
+            "graph": "{{graph}}"
+          },
+          "assign": "graph_record"
+        }
+      ],
+      "outputs": {
+        "graph_id": "{{graph_record.id}}",
+        "graph": "{{graph}}"
+      }
+    },
+
+    {
+      "module": "lineage_insight_generator",
+      "description": "Generate lineage-aware insights using semantic graph and cluster model.",
+      "inputs": {
+        "house_id": "uuid",
+        "query": "string"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "lineage_semantic_graph",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "graph"
+        },
+        {
+          "action": "fetch",
+          "entity": "lineage_cluster_model",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "model"
+        },
+        {
+          "action": "transform",
+          "operation": "generateInsights",
+          "input": {
+            "query": "{{query}}",
+            "graph": "{{graph.graph}}",
+            "clusters": "{{model.clusters}}"
+          },
+          "assign": "insights"
+        }
+      ],
+      "outputs": {
+        "insights": "{{insights}}"
+      }
+    },
+
+    {
+      "module": "lineage_model_pipeline",
+      "description": "Unified pipeline: extract → cluster → graph → insights.",
+      "inputs": {
+        "consultation_record_id": "uuid",
+        "query": "string"
+      },
+      "steps": [
+        {
+          "action": "callModule",
+          "module": "lineage_feature_extraction",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}"
+          },
+          "assign": "features"
+        },
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "callModule",
+          "module": "lineage_cluster_model",
+          "inputs": {
+            "house_id": "{{record.house_id}}"
+          },
+          "assign": "clusters"
+        },
+        {
+          "action": "callModule",
+          "module": "lineage_semantic_graph",
+          "inputs": {
+            "house_id": "{{record.house_id}}"
+          },
+          "assign": "graph"
+        },
+        {
+          "action": "callModule",
+          "module": "lineage_insight_generator",
+          "inputs": {
+            "house_id": "{{record.house_id}}",
+            "query": "{{query}}"
+          },
+          "assign": "insights"
+        }
+      ],
+      "outputs": {
+        "feature_vector_id": "{{features.feature_vector_id}}",
+        "clusters": "{{clusters.clusters}}",
+        "graph": "{{graph.graph}}",
+        "insights": "{{insights.insights}}"
+      }
+    }
+  ]
+}
