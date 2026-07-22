@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Star,
+  Brain,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 const sidebarItems = [
   { label: 'Dashboard', path: '/awo/dashboard', icon: LayoutDashboard },
   { label: 'Consultations', path: '/awo/consultations', icon: Briefcase },
+  { label: 'AI Tools', path: '/awo/ai-tools', icon: Brain },
   { label: 'Schedule', path: '/awo/schedule', icon: Calendar },
   { label: 'Clients', path: '/awo/clients', icon: Users },
   { label: 'Messages', path: '/awo/messages', icon: MessageSquare },

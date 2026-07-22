@@ -1,0 +1,223 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_house_ai_dashboard",
+      "description": "Private AI dashboard for each Ifa house, providing lineage intelligence, semantic insights, predictive analytics, and optimization tools.",
+      "auth": {
+        "requiredRole": "house_admin"
+      },
+      "screens": [
+        {
+          "name": "house_ai_home",
+          "type": "page",
+          "description": "House-level AI intelligence center.",
+          "content": {
+            "header": "House AI Intelligence Dashboard",
+            "body": "Access lineage modeling, semantic Odu insights, predictive analytics, and ebo optimization for your house."
+          },
+          "actions": [
+            {
+              "name": "open_lineage_overview",
+              "label": "Lineage Overview",
+              "type": "navigate",
+              "target": "house_lineage_overview"
+            },
+            {
+              "name": "open_semantic_graph_viewer",
+              "label": "Semantic Graph Viewer",
+              "type": "navigate",
+              "target": "house_semantic_graph_viewer"
+            },
+            {
+              "name": "open_predictive_analytics",
+              "label": "Predictive Analytics",
+              "type": "navigate",
+              "target": "house_predictive_analytics"
+            },
+            {
+              "name": "open_ebo_insights",
+              "label": "Ebo Optimization Insights",
+              "type": "navigate",
+              "target": "house_ebo_insights"
+            }
+          ]
+        },
+
+        {
+          "name": "house_lineage_overview",
+          "type": "page",
+          "description": "Displays lineage clusters, tendencies, and spiritual signatures.",
+          "logic": [
+            {
+              "action": "fetch",
+              "entity": "lineage_cluster_model",
+              "where": { "house_id": "{{currentUser.house_id}}" },
+              "assign": "clusters"
+            },
+            {
+              "action": "fetch",
+              "entity": "lineage_semantic_graph",
+              "where": { "house_id": "{{currentUser.house_id}}" },
+              "assign": "graph"
+            }
+          ],
+          "fields": [
+            {
+              "name": "clusters",
+              "label": "Lineage Clusters",
+              "type": "display",
+              "value": "{{clusters.clusters}}"
+            },
+            {
+              "name": "lineage_graph",
+              "label": "Lineage Semantic Graph",
+              "type": "display",
+              "value": "{{graph.graph}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "back_home",
+              "label": "Back",
+              "type": "navigate",
+              "target": "house_ai_home"
+            }
+          ]
+        },
+
+        {
+          "name": "house_semantic_graph_viewer",
+          "type": "form",
+          "description": "Explore semantic graph relationships for any Odu within the house.",
+          "fields": [
+            {
+              "name": "query",
+              "label": "Semantic Query",
+              "type": "text",
+              "placeholder": "e.g., Show relationships around Odi Meji"
+            }
+          ],
+          "actions": [
+            {
+              "name": "run_semantic_query",
+              "label": "Run Query",
+              "type": "apiCall",
+              "endpoint": "/api/odu/query",
+              "method": "POST",
+              "payload": {
+                "house_id": "{{currentUser.house_id}}",
+                "query": "{{query}}"
+              },
+              "assign": "results"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "semantic_results",
+              "label": "Semantic Graph Results",
+              "value": "{{results.results}}"
+            }
+          ],
+          "actionsAfter": [
+            {
+              "name": "back_home",
+              "label": "Back",
+              "type": "navigate",
+              "target": "house_ai_home"
+            }
+          ]
+        },
+
+        {
+          "name": "house_predictive_analytics",
+          "type": "page",
+          "description": "Predictive outcome trends and spiritual trajectory modeling.",
+          "logic": [
+            {
+              "action": "callModule",
+              "module": "predictive_feature_matrix_builder",
+              "inputs": {
+                "house_id": "{{currentUser.house_id}}"
+              },
+              "assign": "matrix"
+            },
+            {
+              "action": "callModule",
+              "module": "predictive_model_trainer",
+              "inputs": {
+                "house_id": "{{currentUser.house_id}}",
+                "predictive_matrix": "{{matrix.predictive_matrix}}"
+              },
+              "assign": "model"
+            }
+          ],
+          "fields": [
+            {
+              "name": "predictive_matrix",
+              "label": "Predictive Feature Matrix",
+              "type": "display",
+              "value": "{{matrix.predictive_matrix}}"
+            },
+            {
+              "name": "predictive_model",
+              "label": "Predictive Model",
+              "type": "display",
+              "value": "{{model.model}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "back_home",
+              "label": "Back",
+              "type": "navigate",
+              "target": "house_ai_home"
+            }
+          ]
+        },
+
+        {
+          "name": "house_ebo_insights",
+          "type": "page",
+          "description": "House-level ebo optimization intelligence.",
+          "logic": [
+            {
+              "action": "fetch",
+              "entity": "house_odu_rule",
+              "where": { "house_id": "{{currentUser.house_id}}" },
+              "assign": "rules"
+            },
+            {
+              "action": "fetch",
+              "entity": "lineage_semantic_graph",
+              "where": { "house_id": "{{currentUser.house_id}}" },
+              "assign": "graph"
+            }
+          ],
+          "fields": [
+            {
+              "name": "house_rules",
+              "label": "House Ebo Rules",
+              "type": "display",
+              "value": "{{rules}}"
+            },
+            {
+              "name": "lineage_graph",
+              "label": "Lineage Graph",
+              "type": "display",
+              "value": "{{graph.graph}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "back_home",
+              "label": "Back",
+              "type": "navigate",
+              "target": "house_ai_home"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
