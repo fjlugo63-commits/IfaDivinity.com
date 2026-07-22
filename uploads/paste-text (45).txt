@@ -1,0 +1,189 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "ebo_feature_aggregator",
+      "description": "Aggregate semantic, lineage, and statistical features relevant to ebo optimization.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "fetch",
+          "entity": "lineage_feature_vector",
+          "where": { "consultation_record_id": "{{consultation_record_id}}" },
+          "assign": "fv"
+        },
+        {
+          "action": "fetch",
+          "entity": "odu_semantic_graph",
+          "where": { "house_id": "{{record.house_id}}" },
+          "assign": "graph"
+        },
+        {
+          "action": "transform",
+          "operation": "aggregateEboFeatures",
+          "input": {
+            "main_odu": "{{record.main_odu}}",
+            "ire_or_osogbo": "{{record.ire_or_osogbo}}",
+            "subtype": "{{record.subtype}}",
+            "orisha_owner": "{{record.orisha_owner}}",
+            "recommended_ebo": "{{record.recommended_ebo}}",
+            "semantic_graph": "{{graph.graph}}",
+            "lineage_features": "{{fv.features}}"
+          },
+          "assign": "ebo_features"
+        }
+      ],
+      "outputs": {
+        "ebo_features": "{{ebo_features}}"
+      }
+    },
+
+    {
+      "module": "ebo_candidate_generator",
+      "description": "Generate candidate ebo options based on semantic graph and lineage patterns.",
+      "inputs": {
+        "house_id": "uuid",
+        "ebo_features": "json"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "house_odu_rule",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "rules"
+        },
+        {
+          "action": "transform",
+          "operation": "generateEboCandidates",
+          "input": {
+            "ebo_features": "{{ebo_features}}",
+            "house_rules": "{{rules}}"
+          },
+          "assign": "candidates"
+        }
+      ],
+      "outputs": {
+        "ebo_candidates": "{{candidates}}"
+      }
+    },
+
+    {
+      "module": "ebo_score_engine",
+      "description": "Score ebo candidates using semantic similarity, lineage alignment, and historical outcomes.",
+      "inputs": {
+        "house_id": "uuid",
+        "ebo_candidates": "json"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "lineage_semantic_graph",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "graph"
+        },
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "records"
+        },
+        {
+          "action": "transform",
+          "operation": "scoreEboCandidates",
+          "input": {
+            "candidates": "{{ebo_candidates}}",
+            "semantic_graph": "{{graph.graph}}",
+            "historical_records": "{{records}}"
+          },
+          "assign": "scores"
+        }
+      ],
+      "outputs": {
+        "ebo_scores": "{{scores}}"
+      }
+    },
+
+    {
+      "module": "ebo_optimizer",
+      "description": "Select optimal ebo based on scoring, lineage alignment, and semantic graph pathways.",
+      "inputs": {
+        "ebo_scores": "json"
+      },
+      "steps": [
+        {
+          "action": "transform",
+          "operation": "selectOptimalEbo",
+          "input": "{{ebo_scores}}",
+          "assign": "optimal"
+        }
+      ],
+      "outputs": {
+        "optimal_ebo": "{{optimal}}"
+      }
+    },
+
+    {
+      "module": "ebo_optimization_pipeline",
+      "description": "Unified pipeline: aggregate → generate → score → optimize.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "callModule",
+          "module": "ebo_feature_aggregator",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}"
+          },
+          "assign": "features"
+        },
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "callModule",
+          "module": "ebo_candidate_generator",
+          "inputs": {
+            "house_id": "{{record.house_id}}",
+            "ebo_features": "{{features.ebo_features}}"
+          },
+          "assign": "candidates"
+        },
+        {
+          "action": "callModule",
+          "module": "ebo_score_engine",
+          "inputs": {
+            "house_id": "{{record.house_id}}",
+            "ebo_candidates": "{{candidates.ebo_candidates}}"
+          },
+          "assign": "scores"
+        },
+        {
+          "action": "callModule",
+          "module": "ebo_optimizer",
+          "inputs": {
+            "ebo_scores": "{{scores.ebo_scores}}"
+          },
+          "assign": "optimal"
+        }
+      ],
+      "outputs": {
+        "ebo_features": "{{features.ebo_features}}",
+        "ebo_candidates": "{{candidates.ebo_candidates}}",
+        "ebo_scores": "{{scores.ebo_scores}}",
+        "optimal_ebo": "{{optimal.optimal_ebo}}"
+      }
+    }
+  ]
+}

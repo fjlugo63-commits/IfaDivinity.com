@@ -1,0 +1,220 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "semantic_graph_node_builder",
+      "description": "Builds nodes for Odu, ebo, outcomes, lineage, and house-specific constructs.",
+      "inputs": {
+        "feature_vector_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "lineage_feature_vector",
+          "where": { "id": "{{feature_vector_id}}" },
+          "assign": "fv"
+        },
+        {
+          "action": "transform",
+          "operation": "buildNodes",
+          "input": {
+            "main_odu": "{{fv.features.main_odu}}",
+            "ire_or_osogbo": "{{fv.features.ire_or_osogbo}}",
+            "subtype": "{{fv.features.subtype}}",
+            "orisha_owner": "{{fv.features.orisha_owner}}",
+            "recommended_ebo": "{{fv.features.recommended_ebo}}",
+            "house_id": "{{fv.features.house_id}}",
+            "awo_id": "{{fv.features.awo_id}}"
+          },
+          "assign": "nodes"
+        },
+        {
+          "action": "insert",
+          "entity": "semantic_graph_nodes",
+          "values": {
+            "feature_vector_id": "{{feature_vector_id}}",
+            "nodes": "{{nodes}}"
+          },
+          "assign": "node_record"
+        }
+      ],
+      "outputs": {
+        "node_record_id": "{{node_record.id}}",
+        "nodes": "{{nodes}}"
+      }
+    },
+
+    {
+      "module": "semantic_graph_edge_builder",
+      "description": "Builds edges between nodes based on statistical, lineage, and semantic relationships.",
+      "inputs": {
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "semantic_graph_nodes",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "nodes"
+        },
+        {
+          "action": "fetch",
+          "entity": "lineage_cluster_model",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "clusters"
+        },
+        {
+          "action": "transform",
+          "operation": "buildEdges",
+          "input": {
+            "nodes": "{{nodes}}",
+            "clusters": "{{clusters.clusters}}"
+          },
+          "assign": "edges"
+        },
+        {
+          "action": "insert",
+          "entity": "semantic_graph_edges",
+          "values": {
+            "house_id": "{{house_id}}",
+            "edges": "{{edges}}"
+          },
+          "assign": "edge_record"
+        }
+      ],
+      "outputs": {
+        "edge_record_id": "{{edge_record.id}}",
+        "edges": "{{edges}}"
+      }
+    },
+
+    {
+      "module": "semantic_graph_assembler",
+      "description": "Assembles nodes + edges into a unified semantic graph.",
+      "inputs": {
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "semantic_graph_nodes",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "nodes"
+        },
+        {
+          "action": "fetch",
+          "entity": "semantic_graph_edges",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "edges"
+        },
+        {
+          "action": "transform",
+          "operation": "assembleGraph",
+          "input": {
+            "nodes": "{{nodes}}",
+            "edges": "{{edges.edges}}"
+          },
+          "assign": "graph"
+        },
+        {
+          "action": "insert",
+          "entity": "odu_semantic_graph",
+          "values": {
+            "house_id": "{{house_id}}",
+            "graph": "{{graph}}"
+          },
+          "assign": "graph_record"
+        }
+      ],
+      "outputs": {
+        "graph_id": "{{graph_record.id}}",
+        "graph": "{{graph}}"
+      }
+    },
+
+    {
+      "module": "semantic_graph_query_engine",
+      "description": "Query semantic graph for lineage-aware, house-aware insights.",
+      "inputs": {
+        "house_id": "uuid",
+        "query": "string"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "odu_semantic_graph",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "graph"
+        },
+        {
+          "action": "transform",
+          "operation": "queryGraph",
+          "input": {
+            "graph": "{{graph.graph}}",
+            "query": "{{query}}"
+          },
+          "assign": "results"
+        }
+      ],
+      "outputs": {
+        "results": "{{results}}"
+      }
+    },
+
+    {
+      "module": "semantic_graph_pipeline",
+      "description": "Unified pipeline: nodes → edges → graph → query.",
+      "inputs": {
+        "feature_vector_id": "uuid",
+        "query": "string"
+      },
+      "steps": [
+        {
+          "action": "callModule",
+          "module": "semantic_graph_node_builder",
+          "inputs": {
+            "feature_vector_id": "{{feature_vector_id}}"
+          },
+          "assign": "nodes"
+        },
+        {
+          "action": "fetch",
+          "entity": "lineage_feature_vector",
+          "where": { "id": "{{feature_vector_id}}" },
+          "assign": "fv"
+        },
+        {
+          "action": "callModule",
+          "module": "semantic_graph_edge_builder",
+          "inputs": {
+            "house_id": "{{fv.features.house_id}}"
+          },
+          "assign": "edges"
+        },
+        {
+          "action": "callModule",
+          "module": "semantic_graph_assembler",
+          "inputs": {
+            "house_id": "{{fv.features.house_id}}"
+          },
+          "assign": "graph"
+        },
+        {
+          "action": "callModule",
+          "module": "semantic_graph_query_engine",
+          "inputs": {
+            "house_id": "{{fv.features.house_id}}",
+            "query": "{{query}}"
+          },
+          "assign": "results"
+        }
+      ],
+      "outputs": {
+        "nodes": "{{nodes.nodes}}",
+        "edges": "{{edges.edges}}",
+        "graph": "{{graph.graph}}",
+        "results": "{{results.results}}"
+      }
+    }
+  ]
+}
