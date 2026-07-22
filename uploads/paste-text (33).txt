@@ -1,0 +1,194 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "render_odu_name",
+      "description": "Render Odu name according to house tradition, spelling map, and variants.",
+      "inputs": {
+        "odu_code": "string",
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "house_profile",
+          "where": { "id": "{{house_id}}" },
+          "assign": "house"
+        },
+        {
+          "action": "fetch",
+          "entity": "odu_name_map",
+          "where": { "odu_code": "{{odu_code}}" },
+          "assign": "odu_map"
+        },
+        {
+          "action": "transform",
+          "operation": "selectTraditionName",
+          "input": {
+            "tradition": "{{house.tradition}}",
+            "yoruba_name": "{{odu_map.yoruba_name}}",
+            "lukumi_name": "{{odu_map.lukumi_name}}"
+          },
+          "assign": "base_name"
+        },
+        {
+          "action": "transform",
+          "operation": "applySpellingMap",
+          "input": {
+            "name": "{{base_name}}",
+            "spelling_map": "{{house.spelling_map}}"
+          },
+          "assign": "rendered_name"
+        }
+      ],
+      "outputs": {
+        "odu_display_name": "{{rendered_name}}"
+      }
+    },
+
+    {
+      "module": "render_cast2",
+      "description": "Render Ire/Osogbo according to house-specific cast2 table.",
+      "inputs": {
+        "ire_or_osogbo": "string",
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "house_profile",
+          "where": { "id": "{{house_id}}" },
+          "assign": "house"
+        },
+        {
+          "action": "transform",
+          "operation": "applyCastTable",
+          "input": {
+            "value": "{{ire_or_osogbo}}",
+            "table": "{{house.cast2_table}}"
+          },
+          "assign": "rendered"
+        }
+      ],
+      "outputs": {
+        "cast2_display": "{{rendered}}"
+      }
+    },
+
+    {
+      "module": "render_cast3",
+      "description": "Render subtype according to house-specific cast3 table.",
+      "inputs": {
+        "subtype": "string",
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "house_profile",
+          "where": { "id": "{{house_id}}" },
+          "assign": "house"
+        },
+        {
+          "action": "transform",
+          "operation": "applyCastTable",
+          "input": {
+            "value": "{{subtype}}",
+            "table": "{{house.cast3_table}}"
+          },
+          "assign": "rendered"
+        }
+      ],
+      "outputs": {
+        "cast3_display": "{{rendered}}"
+      }
+    },
+
+    {
+      "module": "render_cast4",
+      "description": "Render Orisha owner according to house-specific cast4 table.",
+      "inputs": {
+        "orisha_owner": "string",
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "house_profile",
+          "where": { "id": "{{house_id}}" },
+          "assign": "house"
+        },
+        {
+          "action": "transform",
+          "operation": "applyCastTable",
+          "input": {
+            "value": "{{orisha_owner}}",
+            "table": "{{house.cast4_table}}"
+          },
+          "assign": "rendered"
+        }
+      ],
+      "outputs": {
+        "cast4_display": "{{rendered}}"
+      }
+    },
+
+    {
+      "module": "render_full_consultation",
+      "description": "Render full consultation output using house tradition, spelling maps, and cast tables.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "callModule",
+          "module": "render_odu_name",
+          "inputs": {
+            "odu_code": "{{record.main_odu}}",
+            "house_id": "{{record.house_id}}"
+          },
+          "assign": "odu"
+        },
+        {
+          "action": "callModule",
+          "module": "render_cast2",
+          "inputs": {
+            "ire_or_osogbo": "{{record.ire_or_osogbo}}",
+            "house_id": "{{record.house_id}}"
+          },
+          "assign": "cast2"
+        },
+        {
+          "action": "callModule",
+          "module": "render_cast3",
+          "inputs": {
+            "subtype": "{{record.subtype}}",
+            "house_id": "{{record.house_id}}"
+          },
+          "assign": "cast3"
+        },
+        {
+          "action": "callModule",
+          "module": "render_cast4",
+          "inputs": {
+            "orisha_owner": "{{record.orisha_owner}}",
+            "house_id": "{{record.house_id}}"
+          },
+          "assign": "cast4"
+        }
+      ],
+      "outputs": {
+        "main_odu_display": "{{odu.odu_display_name}}",
+        "ire_or_osogbo_display": "{{cast2.cast2_display}}",
+        "subtype_display": "{{cast3.cast3_display}}",
+        "orisha_owner_display": "{{cast4.cast4_display}}"
+      }
+    }
+  ]
+}
