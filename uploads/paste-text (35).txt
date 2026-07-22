@@ -1,0 +1,166 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_house_profile_manager",
+      "description": "Admin UI for managing house profiles, tradition settings, spelling maps, and cast tables.",
+      "screens": [
+        {
+          "name": "house_list",
+          "type": "list",
+          "entity": "house_profile",
+          "fields": ["name", "tradition", "updated_at"],
+          "actions": ["view", "edit", "create"]
+        },
+        {
+          "name": "house_editor",
+          "type": "form",
+          "entity": "house_profile",
+          "fields": [
+            "name",
+            "tradition",
+            "spelling_map",
+            "pronunciation_map",
+            "cast2_table",
+            "cast3_table",
+            "cast4_table"
+          ],
+          "actions": ["save", "delete"]
+        }
+      ]
+    },
+
+    {
+      "module": "ui_awo_profile_manager",
+      "description": "Admin UI for managing awo profiles, lineage, and consecration mappings.",
+      "screens": [
+        {
+          "name": "awo_list",
+          "type": "list",
+          "entity": "awo_profile",
+          "fields": ["user_id", "house_id", "lineage", "updated_at"],
+          "actions": ["view", "edit", "create"]
+        },
+        {
+          "name": "awo_editor",
+          "type": "form",
+          "entity": "awo_profile",
+          "fields": ["user_id", "house_id", "lineage", "consecration_mapping_id"],
+          "actions": ["save", "delete"]
+        },
+        {
+          "name": "consecration_mapping_editor",
+          "type": "form",
+          "entity": "consecration_mapping",
+          "fields": ["physical_index_to_canonical"],
+          "actions": ["save"]
+        }
+      ]
+    },
+
+    {
+      "module": "ui_rule_version_manager",
+      "description": "UI for viewing, proposing, reviewing, approving, and activating rule versions.",
+      "screens": [
+        {
+          "name": "rule_version_list",
+          "type": "list",
+          "entity": "rule_version",
+          "fields": ["version_number", "status", "created_by", "approved_by", "updated_at"],
+          "actions": ["view"]
+        },
+        {
+          "name": "rule_proposal_list",
+          "type": "list",
+          "entity": "rule_change_proposal",
+          "fields": ["house_id", "proposed_by", "status", "updated_at"],
+          "actions": ["view", "review", "approve", "reject"]
+        },
+        {
+          "name": "rule_proposal_editor",
+          "type": "form",
+          "entity": "rule_change_proposal",
+          "fields": ["changes", "status"],
+          "actions": ["save"]
+        }
+      ]
+    },
+
+    {
+      "module": "ui_consultation_viewer",
+      "description": "UI for viewing consultation records, rendered outputs, and audit history.",
+      "screens": [
+        {
+          "name": "consultation_list",
+          "type": "list",
+          "entity": "consultation_record",
+          "fields": [
+            "awo_id",
+            "house_id",
+            "main_odu",
+            "ire_or_osogbo",
+            "subtype",
+            "orisha_owner",
+            "created_at"
+          ],
+          "actions": ["view"]
+        },
+        {
+          "name": "consultation_detail",
+          "type": "detail",
+          "entity": "consultation_record",
+          "fields": [
+            "raw_bits",
+            "mapped_bits",
+            "pattern_key",
+            "pattern_index",
+            "main_odu",
+            "ire_or_osogbo",
+            "subtype",
+            "orisha_owner",
+            "recommended_ebo",
+            "rule_version_id",
+            "notes"
+          ],
+          "actions": ["refresh_render"]
+        }
+      ]
+    },
+
+    {
+      "module": "ui_audit_log_viewer",
+      "description": "UI for viewing audit logs across the entire consultation engine.",
+      "screens": [
+        {
+          "name": "audit_log_list",
+          "type": "list",
+          "entity": "audit_log",
+          "fields": ["actor_id", "action", "entity", "entity_id", "created_at"],
+          "filters": ["actor_id", "entity", "entity_id"],
+          "actions": ["view"]
+        }
+      ]
+    },
+
+    {
+      "module": "ui_engine_config",
+      "description": "UI for managing active rule versions and engine flags.",
+      "screens": [
+        {
+          "name": "engine_config_list",
+          "type": "list",
+          "entity": "consult_engine_config",
+          "fields": ["house_id", "active_rule_version_id", "updated_at"],
+          "actions": ["view", "edit"]
+        },
+        {
+          "name": "engine_config_editor",
+          "type": "form",
+          "entity": "consult_engine_config",
+          "fields": ["active_rule_version_id", "engine_flags"],
+          "actions": ["save"]
+        }
+      ]
+    }
+  ]
+}
