@@ -29,6 +29,12 @@ const AdminConsultations = lazy(() => import('./pages/AdminConsultations'));
 const AdminPayments = lazy(() => import('./pages/AdminPayments'));
 const AdminHousesBotanica = lazy(() => import('./pages/AdminHousesBotanica'));
 const AdminSettings = lazy(() => import('./pages/AdminSettings'));
+const AdminHouseProfiles = lazy(() => import('./pages/admin/AdminHouseProfiles'));
+const AdminAwoProfiles = lazy(() => import('./pages/admin/AdminAwoProfiles'));
+const AdminRuleVersions = lazy(() => import('./pages/admin/AdminRuleVersions'));
+const AdminConsultationViewer = lazy(() => import('./pages/admin/AdminConsultationViewer'));
+const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
+const AdminEngineConfig = lazy(() => import('./pages/admin/AdminEngineConfig'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
 const AwoDashboard = lazy(() => import('./pages/AwoDashboard'));
@@ -138,6 +144,12 @@ const AppRoutes = () => (
         <Route path="houses" element={<AdminHousesBotanica />} />
         <Route path="botanica" element={<AdminHousesBotanica />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="engine/houses" element={<AdminHouseProfiles />} />
+        <Route path="engine/awos" element={<AdminAwoProfiles />} />
+        <Route path="engine/rules" element={<AdminRuleVersions />} />
+        <Route path="engine/consultations" element={<AdminConsultationViewer />} />
+        <Route path="engine/audit" element={<AdminAuditLogs />} />
+        <Route path="engine/config" element={<AdminEngineConfig />} />
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
 

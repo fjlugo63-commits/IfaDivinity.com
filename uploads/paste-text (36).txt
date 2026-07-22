@@ -1,0 +1,171 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_integration_test_harness",
+      "description": "Internal test harness for validating the full Opele consultation pipeline end-to-end.",
+      "screens": [
+        {
+          "name": "test_harness_dashboard",
+          "type": "form",
+          "description": "Input raw bits, select Awo and House, run full consultation engine.",
+          "fields": [
+            {
+              "name": "raw_bits",
+              "label": "Raw Opele Bits (8-bit string)",
+              "type": "text"
+            },
+            {
+              "name": "awo_id",
+              "label": "Awo",
+              "type": "select",
+              "entity": "awo_profile",
+              "displayField": "user_id"
+            },
+            {
+              "name": "house_id",
+              "label": "House",
+              "type": "select",
+              "entity": "house_profile",
+              "displayField": "name"
+            }
+          ],
+          "actions": [
+            {
+              "name": "run_consultation",
+              "label": "Run Consultation",
+              "type": "apiCall",
+              "endpoint": "/consult/opele",
+              "method": "POST",
+              "payload": {
+                "raw_bits": "{{raw_bits}}",
+                "awo_id": "{{awo_id}}",
+                "house_id": "{{house_id}}"
+              },
+              "assign": "consult_result"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "main_odu",
+              "label": "Main Odu",
+              "value": "{{consult_result.main_odu}}"
+            },
+            {
+              "name": "ire_or_osogbo",
+              "label": "Ire / Osogbo",
+              "value": "{{consult_result.ire_or_osogbo}}"
+            },
+            {
+              "name": "subtype",
+              "label": "Subtype",
+              "value": "{{consult_result.subtype}}"
+            },
+            {
+              "name": "orisha_owner",
+              "label": "Orisha Owner",
+              "value": "{{consult_result.orisha_owner}}"
+            },
+            {
+              "name": "recommended_ebo",
+              "label": "Recommended Ebo",
+              "value": "{{consult_result.recommended_ebo}}"
+            },
+            {
+              "name": "consultation_record_id",
+              "label": "Record ID",
+              "value": "{{consult_result.consultation_record_id}}"
+            }
+          ]
+        },
+
+        {
+          "name": "test_harness_record_viewer",
+          "type": "detail",
+          "description": "View full consultation record and rendered output.",
+          "entity": "consultation_record",
+          "fields": [
+            "raw_bits",
+            "mapped_bits",
+            "pattern_key",
+            "pattern_index",
+            "main_odu",
+            "ire_or_osogbo",
+            "subtype",
+            "orisha_owner",
+            "recommended_ebo",
+            "rule_version_id",
+            "created_at"
+          ],
+          "actions": [
+            {
+              "name": "render_output",
+              "label": "Render Output",
+              "type": "apiCall",
+              "endpoint": "/consult/{{id}}",
+              "method": "GET",
+              "assign": "rendered"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "main_odu_display",
+              "label": "Rendered Odu",
+              "value": "{{rendered.main_odu}}"
+            },
+            {
+              "name": "ire_or_osogbo_display",
+              "label": "Rendered Ire/Osogbo",
+              "value": "{{rendered.ire_or_osogbo}}"
+            },
+            {
+              "name": "subtype_display",
+              "label": "Rendered Subtype",
+              "value": "{{rendered.subtype}}"
+            },
+            {
+              "name": "orisha_owner_display",
+              "label": "Rendered Orisha Owner",
+              "value": "{{rendered.orisha_owner}}"
+            }
+          ]
+        },
+
+        {
+          "name": "test_harness_audit_viewer",
+          "type": "list",
+          "description": "View audit logs related to test consultations.",
+          "entity": "audit_log",
+          "fields": [
+            "actor_id",
+            "action",
+            "entity",
+            "entity_id",
+            "created_at"
+          ],
+          "filters": [
+            "actor_id",
+            "entity",
+            "entity_id"
+          ],
+          "actions": ["view"]
+        },
+
+        {
+          "name": "test_harness_rule_version_viewer",
+          "type": "list",
+          "description": "View rule versions used during test consultations.",
+          "entity": "rule_version",
+          "fields": [
+            "version_number",
+            "status",
+            "created_by",
+            "approved_by",
+            "updated_at"
+          ],
+          "actions": ["view"]
+        }
+      ]
+    }
+  ]
+}
