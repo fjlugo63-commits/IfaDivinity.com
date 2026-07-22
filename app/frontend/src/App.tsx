@@ -39,6 +39,7 @@ const AdminTestHarness = lazy(() => import('./pages/admin/AdminTestHarness'));
 const AdminModeration = lazy(() => import('./pages/admin/AdminModeration'));
 const ContributionPortal = lazy(() => import('./pages/ContributionPortal'));
 const HousePortal = lazy(() => import('./pages/HousePortal'));
+const AwoDirectory = lazy(() => import('./pages/AwoDirectory'));
 const PublicConsultation = lazy(() => import('./pages/PublicConsultation'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
@@ -182,6 +183,9 @@ const AppRoutes = () => (
 
       {/* Public house portal */}
       <Route path="/houses" element={<HousePortal />} />
+
+      {/* Public Awo directory */}
+      <Route path="/awo-directory" element={<AwoDirectory />} />
 
       {/* System routes */}
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />

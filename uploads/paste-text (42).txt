@@ -1,0 +1,187 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_public_divination_history",
+      "description": "Public-facing divination history viewer and analytics dashboard.",
+      "screens": [
+        {
+          "name": "divination_history_landing",
+          "type": "page",
+          "description": "Landing page introducing the divination history and analytics features.",
+          "content": {
+            "header": "Divination History & Analytics",
+            "body": "Explore your past consultations and view community-wide patterns across Odu, Ire/Osogbo, and lineage variations."
+          },
+          "actions": [
+            {
+              "name": "view_my_history",
+              "label": "My History",
+              "type": "navigate",
+              "target": "divination_history_list"
+            },
+            {
+              "name": "view_analytics",
+              "label": "Community Analytics",
+              "type": "navigate",
+              "target": "divination_analytics_dashboard"
+            }
+          ]
+        },
+
+        {
+          "name": "divination_history_list",
+          "type": "list",
+          "description": "List of user’s past consultations.",
+          "entity": "consultation_record",
+          "filters": [
+            {
+              "field": "awo_id",
+              "value": "{{currentUser.id}}"
+            }
+          ],
+          "fields": [
+            "created_at",
+            "main_odu",
+            "ire_or_osogbo",
+            "subtype",
+            "orisha_owner"
+          ],
+          "actions": [
+            {
+              "name": "view_detail",
+              "label": "View",
+              "type": "navigate",
+              "target": "divination_history_detail",
+              "params": {
+                "consultation_record_id": "{{id}}"
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "divination_history_detail",
+          "type": "page",
+          "description": "Full detail view of a past consultation.",
+          "logic": [
+            {
+              "action": "fetch",
+              "entity": "consultation_record",
+              "where": { "id": "{{params.consultation_record_id}}" },
+              "assign": "record"
+            },
+            {
+              "action": "callModule",
+              "module": "render_full_consultation",
+              "inputs": {
+                "consultation_record_id": "{{params.consultation_record_id}}"
+              },
+              "assign": "rendered"
+            }
+          ],
+          "fields": [
+            {
+              "name": "main_odu",
+              "label": "Main Odu",
+              "type": "display",
+              "value": "{{rendered.main_odu_display}}"
+            },
+            {
+              "name": "ire_or_osogbo",
+              "label": "Ire / Osogbo",
+              "type": "display",
+              "value": "{{rendered.ire_or_osogbo_display}}"
+            },
+            {
+              "name": "subtype",
+              "label": "Subtype",
+              "type": "display",
+              "value": "{{rendered.subtype_display}}"
+            },
+            {
+              "name": "orisha_owner",
+              "label": "Orisha Owner",
+              "type": "display",
+              "value": "{{rendered.orisha_owner_display}}"
+            },
+            {
+              "name": "recommended_ebo",
+              "label": "Recommended Ebo",
+              "type": "display",
+              "value": "{{record.recommended_ebo}}"
+            },
+            {
+              "name": "created_at",
+              "label": "Date",
+              "type": "display",
+              "value": "{{record.created_at}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "back_to_history",
+              "label": "Back to History",
+              "type": "navigate",
+              "target": "divination_history_list"
+            }
+          ]
+        },
+
+        {
+          "name": "divination_analytics_dashboard",
+          "type": "page",
+          "description": "Community-wide analytics dashboard showing Odu frequency, Ire/Osogbo distribution, and lineage patterns.",
+          "logic": [
+            {
+              "action": "apiCall",
+              "endpoint": "/analytics/oduFrequency",
+              "method": "GET",
+              "assign": "odu_freq"
+            },
+            {
+              "action": "apiCall",
+              "endpoint": "/analytics/ireOsogboDistribution",
+              "method": "GET",
+              "assign": "ire_osogbo"
+            },
+            {
+              "action": "apiCall",
+              "endpoint": "/analytics/lineagePatterns",
+              "method": "GET",
+              "assign": "lineage"
+            }
+          ],
+          "fields": [
+            {
+              "name": "odu_frequency",
+              "label": "Odu Frequency",
+              "type": "chart",
+              "value": "{{odu_freq}}"
+            },
+            {
+              "name": "ire_osogbo_distribution",
+              "label": "Ire / Osogbo Distribution",
+              "type": "chart",
+              "value": "{{ire_osogbo}}"
+            },
+            {
+              "name": "lineage_patterns",
+              "label": "Lineage Patterns",
+              "type": "chart",
+              "value": "{{lineage}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "back_to_landing",
+              "label": "Back",
+              "type": "navigate",
+              "target": "divination_history_landing"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
