@@ -66,6 +66,7 @@ export const TABLES = {
   semantic_graph_nodes: 'semantic_graph_nodes',
   semantic_graph_edges: 'semantic_graph_edges',
   odu_semantic_graph: 'odu_semantic_graph',
+  predictive_outcome_model: 'predictive_outcome_model',
   house_odu_rule: 'house_odu_rule',
   rule_version: 'rule_version',
   odu_name_map: 'odu_name_map',

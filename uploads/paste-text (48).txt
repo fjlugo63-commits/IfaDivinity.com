@@ -1,0 +1,173 @@
+{
+  "atomsCommand": "defineApiModules",
+  "modules": [
+    {
+      "module": "api_lineage_model",
+      "description": "API endpoints for lineage feature extraction, clustering, semantic graph building, and insights.",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/lineage/extract",
+          "logicModule": "lineage_feature_extraction",
+          "inputs": ["consultation_record_id"],
+          "outputs": ["feature_vector_id"]
+        },
+        {
+          "method": "POST",
+          "path": "/api/lineage/cluster",
+          "logicModule": "lineage_cluster_model",
+          "inputs": ["house_id"],
+          "outputs": ["model_id", "clusters"]
+        },
+        {
+          "method": "POST",
+          "path": "/api/lineage/graph",
+          "logicModule": "lineage_semantic_graph",
+          "inputs": ["house_id"],
+          "outputs": ["graph_id", "graph"]
+        },
+        {
+          "method": "POST",
+          "path": "/api/lineage/insights",
+          "logicModule": "lineage_insight_generator",
+          "inputs": ["house_id", "query"],
+          "outputs": ["insights"]
+        }
+      ]
+    },
+
+    {
+      "module": "api_odu_semantic_graph",
+      "description": "API endpoints for Odu semantic graph nodes, edges, assembly, and queries.",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/odu/nodes",
+          "logicModule": "semantic_graph_node_builder",
+          "inputs": ["feature_vector_id"],
+          "outputs": ["node_record_id", "nodes"]
+        },
+        {
+          "method": "POST",
+          "path": "/api/odu/edges",
+          "logicModule": "semantic_graph_edge_builder",
+          "inputs": ["house_id"],
+          "outputs": ["edge_record_id", "edges"]
+        },
+        {
+          "method": "POST",
+          "path": "/api/odu/graph",
+          "logicModule": "semantic_graph_assembler",
+          "inputs": ["house_id"],
+          "outputs": ["graph_id", "graph"]
+        },
+        {
+          "method": "POST",
+          "path": "/api/odu/query",
+          "logicModule": "semantic_graph_query_engine",
+          "inputs": ["house_id", "query"],
+          "outputs": ["results"]
+        }
+      ]
+    },
+
+    {
+      "module": "api_ebo_optimization",
+      "description": "API endpoints for AI-assisted ebo optimization pipeline.",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/ebo/optimize",
+          "logicModule": "ebo_optimization_pipeline",
+          "inputs": ["consultation_record_id"],
+          "outputs": [
+            "ebo_features",
+            "ebo_candidates",
+            "ebo_scores",
+            "optimal_ebo"
+          ]
+        }
+      ]
+    },
+
+    {
+      "module": "api_odu_reasoner",
+      "description": "API endpoints for semantic Odu reasoning and AI-augmented interpretation.",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/odu/reason",
+          "logicModule": "semantic_odu_reasoner_pipeline",
+          "inputs": ["consultation_record_id", "query"],
+          "outputs": [
+            "semantic_context",
+            "reasoning",
+            "expanded_reasoning",
+            "ai_interpretation"
+          ]
+        }
+      ]
+    },
+
+    {
+      "module": "api_predictive_outcomes",
+      "description": "API endpoints for predictive outcome modeling and explanations.",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/predict/outcome",
+          "logicModule": "predictive_outcome_pipeline",
+          "inputs": ["consultation_record_id"],
+          "outputs": [
+            "predictive_matrix",
+            "model",
+            "prediction",
+            "prediction_explanation"
+          ]
+        }
+      ]
+    },
+
+    {
+      "module": "api_phase2_master",
+      "description": "Unified Phase 2/3 API entrypoint for all AI-augmented divination operations.",
+      "routes": [
+        {
+          "method": "POST",
+          "path": "/api/ai/consult",
+          "description": "Full AI-augmented consultation pipeline.",
+          "logicChain": [
+            {
+              "module": "lineage_feature_extraction",
+              "inputs": ["consultation_record_id"]
+            },
+            {
+              "module": "semantic_graph_pipeline",
+              "inputs": ["feature_vector_id", "query"]
+            },
+            {
+              "module": "ebo_optimization_pipeline",
+              "inputs": ["consultation_record_id"]
+            },
+            {
+              "module": "predictive_outcome_pipeline",
+              "inputs": ["consultation_record_id"]
+            },
+            {
+              "module": "semantic_odu_reasoner_pipeline",
+              "inputs": ["consultation_record_id", "query"]
+            }
+          ],
+          "outputs": [
+            "feature_vector_id",
+            "semantic_graph",
+            "optimal_ebo",
+            "prediction",
+            "prediction_explanation",
+            "ai_interpretation"
+          ]
+        }
+      ]
+    }
+  ]
+}
