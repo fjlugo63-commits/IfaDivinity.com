@@ -1,0 +1,135 @@
+{
+  "atomsCommand": "defineEntities",
+  "entities": [
+    {
+      "entity": "house_profile",
+      "fields": {
+        "id": "uuid",
+        "name": "string",
+        "tradition": "enum(yoruba,lukumi)",
+        "spelling_map": "json",
+        "pronunciation_map": "json",
+        "cast2_table": "json",
+        "cast3_table": "json",
+        "cast4_table": "json",
+        "created_at": "timestamp",
+        "updated_at": "timestamp"
+      }
+    },
+    {
+      "entity": "awo_profile",
+      "fields": {
+        "id": "uuid",
+        "user_id": "uuid",
+        "house_id": "uuid",
+        "lineage": "string",
+        "consecration_mapping_id": "uuid",
+        "created_at": "timestamp",
+        "updated_at": "timestamp"
+      }
+    },
+    {
+      "entity": "consecration_mapping",
+      "fields": {
+        "id": "uuid",
+        "awo_id": "uuid",
+        "physical_index_to_canonical": "json",
+        "created_at": "timestamp"
+      }
+    },
+    {
+      "entity": "consultation_record",
+      "fields": {
+        "id": "uuid",
+        "awo_id": "uuid",
+        "house_id": "uuid",
+        "raw_bits": "string",
+        "mapped_bits": "string",
+        "pattern_key": "string",
+        "pattern_index": "integer",
+        "main_odu": "string",
+        "ire_or_osogbo": "string",
+        "subtype": "string",
+        "orisha_owner": "string",
+        "recommended_ebo": "json",
+        "rule_version_id": "uuid",
+        "notes": "text",
+        "created_at": "timestamp"
+      }
+    },
+    {
+      "entity": "house_odu_rule",
+      "fields": {
+        "id": "uuid",
+        "house_id": "uuid",
+        "rule_version_id": "uuid",
+        "pattern_key": "string",
+        "odu_code": "string",
+        "combined_name": "string",
+        "result": "string",
+        "subtype": "string",
+        "recommended_ebo": "json",
+        "created_at": "timestamp"
+      }
+    },
+    {
+      "entity": "rule_version",
+      "fields": {
+        "id": "uuid",
+        "house_id": "uuid",
+        "version_number": "integer",
+        "status": "enum(proposed,reviewed,approved,rejected)",
+        "created_by": "uuid",
+        "approved_by": "uuid",
+        "created_at": "timestamp",
+        "updated_at": "timestamp"
+      }
+    },
+    {
+      "entity": "odu_name_map",
+      "fields": {
+        "id": "uuid",
+        "odu_code": "string",
+        "yoruba_name": "string",
+        "lukumi_name": "string",
+        "variants": "json",
+        "created_at": "timestamp"
+      }
+    },
+    {
+      "entity": "audit_log",
+      "fields": {
+        "id": "uuid",
+        "actor_id": "uuid",
+        "action": "string",
+        "entity": "string",
+        "entity_id": "uuid",
+        "payload": "json",
+        "created_at": "timestamp"
+      }
+    },
+    {
+      "entity": "rule_change_proposal",
+      "fields": {
+        "id": "uuid",
+        "house_id": "uuid",
+        "proposed_by": "uuid",
+        "changes": "json",
+        "status": "enum(pending,approved,rejected)",
+        "created_at": "timestamp",
+        "updated_at": "timestamp"
+      }
+    },
+    {
+      "entity": "consult_engine_config",
+      "fields": {
+        "id": "uuid",
+        "house_id": "uuid",
+        "active_rule_version_id": "uuid",
+        "engine_flags": "json",
+        "created_at": "timestamp",
+        "updated_at": "timestamp"
+      }
+    }
+  ]
+}
