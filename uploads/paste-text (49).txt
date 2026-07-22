@@ -1,0 +1,161 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_public_ai_consultation",
+      "description": "Public-facing AI-augmented consultation interface using Phase 2/3 unified API.",
+      "screens": [
+        {
+          "name": "ai_consultation_landing",
+          "type": "page",
+          "description": "Landing page introducing AI-augmented Ifa consultation.",
+          "content": {
+            "header": "AI-Augmented Opele Consultation",
+            "body": "Experience enhanced divination powered by lineage modeling, semantic Odu reasoning, predictive outcomes, and optimized ebo guidance."
+          },
+          "actions": [
+            {
+              "name": "start_ai_consultation",
+              "label": "Begin AI Consultation",
+              "type": "navigate",
+              "target": "ai_consultation_form"
+            }
+          ]
+        },
+
+        {
+          "name": "ai_consultation_form",
+          "type": "form",
+          "description": "User inputs Opele cast and selects house for AI-augmented consultation.",
+          "fields": [
+            {
+              "name": "house_id",
+              "label": "Select House",
+              "type": "select",
+              "entity": "house_profile",
+              "displayField": "name"
+            },
+            {
+              "name": "raw_bits",
+              "label": "Opele Cast (8-bit)",
+              "type": "text",
+              "placeholder": "e.g., 10100110"
+            },
+            {
+              "name": "query",
+              "label": "Optional Question",
+              "type": "text",
+              "placeholder": "e.g., What guidance does Ifa offer about my path?"
+            }
+          ],
+          "actions": [
+            {
+              "name": "run_ai_consultation",
+              "label": "Consult Ifa (AI)",
+              "type": "apiCall",
+              "endpoint": "/api/ai/consult",
+              "method": "POST",
+              "payload": {
+                "raw_bits": "{{raw_bits}}",
+                "house_id": "{{house_id}}",
+                "query": "{{query}}"
+              },
+              "assign": "ai_result"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "main_odu",
+              "label": "Main Odu",
+              "value": "{{ai_result.semantic_context.main_odu}}"
+            },
+            {
+              "name": "ire_or_osogbo",
+              "label": "Ire / Osogbo",
+              "value": "{{ai_result.semantic_context.ire_or_osogbo}}"
+            },
+            {
+              "name": "subtype",
+              "label": "Subtype",
+              "value": "{{ai_result.semantic_context.subtype}}"
+            },
+            {
+              "name": "orisha_owner",
+              "label": "Orisha Owner",
+              "value": "{{ai_result.semantic_context.orisha_owner}}"
+            }
+          ],
+          "actionsAfter": [
+            {
+              "name": "view_full_ai_result",
+              "label": "View Full AI Interpretation",
+              "type": "navigate",
+              "target": "ai_consultation_result",
+              "params": {
+                "ai_result": "{{ai_result}}"
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "ai_consultation_result",
+          "type": "page",
+          "description": "Full AI-augmented consultation result including reasoning, predictions, and optimized ebo.",
+          "fields": [
+            {
+              "name": "ai_interpretation",
+              "label": "AI Interpretation",
+              "type": "display",
+              "value": "{{params.ai_result.ai_interpretation}}"
+            },
+            {
+              "name": "expanded_reasoning",
+              "label": "Expanded Reasoning",
+              "type": "display",
+              "value": "{{params.ai_result.expanded_reasoning}}"
+            },
+            {
+              "name": "prediction",
+              "label": "Predictive Outcome",
+              "type": "display",
+              "value": "{{params.ai_result.prediction}}"
+            },
+            {
+              "name": "prediction_explanation",
+              "label": "Prediction Explanation",
+              "type": "display",
+              "value": "{{params.ai_result.prediction_explanation}}"
+            },
+            {
+              "name": "optimal_ebo",
+              "label": "Optimized Ebo Recommendation",
+              "type": "display",
+              "value": "{{params.ai_result.optimal_ebo}}"
+            },
+            {
+              "name": "semantic_graph",
+              "label": "Semantic Graph Snapshot",
+              "type": "display",
+              "value": "{{params.ai_result.semantic_graph}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "new_ai_consultation",
+              "label": "New AI Consultation",
+              "type": "navigate",
+              "target": "ai_consultation_form"
+            },
+            {
+              "name": "back_to_landing",
+              "label": "Back to Home",
+              "type": "navigate",
+              "target": "ai_consultation_landing"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
