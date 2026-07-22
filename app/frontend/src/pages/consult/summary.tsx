@@ -1,38 +1,35 @@
-import { useConsult } from "../../contexts/consultContext";
-import SummaryHeader from "../../components/consult/SummaryHeader";
-import SummaryDetails from "../../components/consult/SummaryDetails";
-import SummaryActions from "../../components/consult/SummaryActions";
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
 
 export default function ConsultSummary() {
-  const { state } = useConsult();
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get("id");
 
-  // Temporary placeholders until Module 6 (Supabase)
-  const summary = {
-    clientName: "Client Name",
-    odu: "Odu Placeholder",
-    status: "Ire",
-    ebo: "Ebo Placeholder",
-    notes: "Notes Placeholder"
-  };
+  const [summary, setSummary] = useState<any>(null);
 
-  function saveConsult() {
-    console.log("Saving consult:", summary);
-  }
+  useEffect(() => {
+    async function loadSummary() {
+      const { data } = await supabase
+        .from("consult_summary")
+        .select("*")
+        .eq("session_id", sessionId)
+        .single();
 
-  function goToPayment() {
-    window.location.href = "/consult/payment";
-  }
+      setSummary(data);
+    }
+
+    loadSummary();
+  }, [sessionId]);
+
+  if (!summary) return <div>Loading…</div>;
 
   return (
     <div className="p-6">
-      <SummaryHeader clientName={summary.clientName} />
-      <SummaryDetails
-        odu={summary.odu}
-        status={summary.status}
-        ebo={summary.ebo}
-        notes={summary.notes}
-      />
-      <SummaryActions onSave={saveConsult} onPay={goToPayment} />
+      <h1 className="text-xl font-bold">Consult Summary</h1>
+
+      <p><strong>Odu:</strong> {summary.odu}</p>
+      <p><strong>Status:</strong> {summary.status}</p>
+      <p><strong>Notes:</strong> {summary.notes}</p>
     </div>
   );
 }
