@@ -1,0 +1,254 @@
+{
+  "atomsCommand": "defineApiEndpoints",
+  "endpoints": [
+    {
+      "name": "create_opele_consultation",
+      "method": "POST",
+      "path": "/consult/opele",
+      "description": "Perform an Opele consultation and return rendered results.",
+      "inputs": {
+        "raw_bits": "string",
+        "awo_id": "uuid",
+        "house_id": "uuid"
+      },
+      "logic": [
+        {
+          "action": "callModule",
+          "module": "consult_engine",
+          "inputs": {
+            "raw_bits": "{{raw_bits}}",
+            "awo_id": "{{awo_id}}",
+            "house_id": "{{house_id}}"
+          },
+          "assign": "engine"
+        },
+        {
+          "action": "callModule",
+          "module": "consultation_logging_pipeline",
+          "inputs": {
+            "consultation_record_id": "{{engine.consultation_record_id}}",
+            "actor_id": "{{awo_id}}"
+          },
+          "assign": "logging"
+        },
+        {
+          "action": "callModule",
+          "module": "render_full_consultation",
+          "inputs": {
+            "consultation_record_id": "{{engine.consultation_record_id}}"
+          },
+          "assign": "rendered"
+        }
+      ],
+      "outputs": {
+        "consultation_record_id": "{{engine.consultation_record_id}}",
+        "main_odu": "{{rendered.main_odu_display}}",
+        "ire_or_osogbo": "{{rendered.ire_or_osogbo_display}}",
+        "subtype": "{{rendered.subtype_display}}",
+        "orisha_owner": "{{rendered.orisha_owner_display}}",
+        "recommended_ebo": "{{engine.recommended_ebo}}"
+      }
+    },
+
+    {
+      "name": "get_consultation",
+      "method": "GET",
+      "path": "/consult/{id}",
+      "description": "Fetch and render a consultation by ID.",
+      "inputs": {
+        "id": "uuid"
+      },
+      "logic": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "callModule",
+          "module": "render_full_consultation",
+          "inputs": {
+            "consultation_record_id": "{{id}}"
+          },
+          "assign": "rendered"
+        }
+      ],
+      "outputs": {
+        "consultation_record_id": "{{id}}",
+        "main_odu": "{{rendered.main_odu_display}}",
+        "ire_or_osogbo": "{{rendered.ire_or_osogbo_display}}",
+        "subtype": "{{rendered.subtype_display}}",
+        "orisha_owner": "{{rendered.orisha_owner_display}}",
+        "recommended_ebo": "{{record.recommended_ebo}}"
+      }
+    },
+
+    {
+      "name": "list_house_rules",
+      "method": "GET",
+      "path": "/house/{house_id}/rules",
+      "description": "List rule versions and active rule for a house.",
+      "inputs": {
+        "house_id": "uuid"
+      },
+      "logic": [
+        {
+          "action": "fetch",
+          "entity": "consult_engine_config",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "config"
+        },
+        {
+          "action": "fetch",
+          "entity": "rule_version",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "versions"
+        }
+      ],
+      "outputs": {
+        "house_id": "{{house_id}}",
+        "active_rule_version_id": "{{config.active_rule_version_id}}",
+        "rule_versions": "{{versions}}"
+      }
+    },
+
+    {
+      "name": "propose_rule_change",
+      "method": "POST",
+      "path": "/rules/propose",
+      "description": "Create a new rule change proposal.",
+      "inputs": {
+        "house_id": "uuid",
+        "proposed_by": "uuid",
+        "changes": "json"
+      },
+      "logic": [
+        {
+          "action": "callModule",
+          "module": "rule_proposal_create",
+          "inputs": {
+            "house_id": "{{house_id}}",
+            "proposed_by": "{{proposed_by}}",
+            "changes": "{{changes}}"
+          },
+          "assign": "proposal"
+        }
+      ],
+      "outputs": {
+        "proposal_id": "{{proposal.proposal_id}}",
+        "status": "pending"
+      }
+    },
+
+    {
+      "name": "approve_rule_proposal",
+      "method": "POST",
+      "path": "/rules/approve",
+      "description": "Approve a rule proposal and create a new rule version.",
+      "inputs": {
+        "proposal_id": "uuid",
+        "approver_id": "uuid"
+      },
+      "logic": [
+        {
+          "action": "callModule",
+          "module": "rule_proposal_approve",
+          "inputs": {
+            "proposal_id": "{{proposal_id}}",
+            "approver_id": "{{approver_id}}"
+          },
+          "assign": "approved"
+        }
+      ],
+      "outputs": {
+        "proposal_id": "{{approved.proposal_id}}",
+        "rule_version_id": "{{approved.rule_version_id}}",
+        "status": "{{approved.status}}"
+      }
+    },
+
+    {
+      "name": "reject_rule_proposal",
+      "method": "POST",
+      "path": "/rules/reject",
+      "description": "Reject a rule proposal.",
+      "inputs": {
+        "proposal_id": "uuid",
+        "rejector_id": "uuid",
+        "reason": "json"
+      },
+      "logic": [
+        {
+          "action": "callModule",
+          "module": "rule_proposal_reject",
+          "inputs": {
+            "proposal_id": "{{proposal_id}}",
+            "rejector_id": "{{rejector_id}}",
+            "reason": "{{reason}}"
+          },
+          "assign": "rejected"
+        }
+      ],
+      "outputs": {
+        "proposal_id": "{{rejected.proposal_id}}",
+        "status": "{{rejected.status}}"
+      }
+    },
+
+    {
+      "name": "activate_rule_version",
+      "method": "POST",
+      "path": "/rules/activate",
+      "description": "Activate a rule version for a house.",
+      "inputs": {
+        "house_id": "uuid",
+        "rule_version_id": "uuid",
+        "actor_id": "uuid"
+      },
+      "logic": [
+        {
+          "action": "callModule",
+          "module": "activate_rule_version",
+          "inputs": {
+            "house_id": "{{house_id}}",
+            "rule_version_id": "{{rule_version_id}}",
+            "actor_id": "{{actor_id}}"
+          },
+          "assign": "activated"
+        }
+      ],
+      "outputs": {
+        "house_id": "{{activated.house_id}}",
+        "active_rule_version_id": "{{activated.active_rule_version_id}}"
+      }
+    },
+
+    {
+      "name": "list_audit_logs",
+      "method": "GET",
+      "path": "/audit/logs",
+      "description": "List audit logs with optional filters.",
+      "inputs": {
+        "actor_id": "uuid?",
+        "entity": "string?",
+        "entity_id": "uuid?"
+      },
+      "logic": [
+        {
+          "action": "fetch",
+          "entity": "audit_log",
+          "where": {
+            "actor_id": "{{actor_id}}",
+            "entity": "{{entity}}",
+            "entity_id": "{{entity_id}}"
+          },
+          "assign": "logs"
+        }
+      ],
+      "outputs": {
+        "logs": "{{logs}}"
+      }
+    }
+  ]
+}
