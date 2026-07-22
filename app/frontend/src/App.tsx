@@ -48,6 +48,7 @@ const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
 const AwoDashboard = lazy(() => import('./pages/AwoDashboard'));
 const AwoConsultations = lazy(() => import('./pages/AwoConsultations'));
 const AwoAiTools = lazy(() => import('./pages/AwoAiTools'));
+const HouseAiDashboard = lazy(() => import('./pages/HouseAiDashboard'));
 const ConsultationWorkspace = lazy(() => import('./pages/ConsultationWorkspace'));
 const ConsultationHistory = lazy(() => import('./pages/ConsultationHistory'));
 const AwoScheduling = lazy(() => import('./pages/AwoScheduling'));
@@ -116,6 +117,8 @@ const AppRoutes = () => (
         <Route path="consultations" element={<AwoConsultations />} />
         <Route path="ai-tools" element={<AwoAiTools />} />
         <Route path="ai-tools/:tool" element={<AwoAiTools />} />
+        <Route path="house-ai" element={<HouseAiDashboard />} />
+        <Route path="house-ai/:screen" element={<HouseAiDashboard />} />
         <Route path="schedule" element={<AwoScheduling />} />
         <Route path="clients" element={<AwoClients />} />
         <Route path="messages" element={<AwoMessages />} />
