@@ -1,0 +1,229 @@
+{
+  "atomsCommand": "defineLogicModules",
+  "modules": [
+    {
+      "module": "predictive_feature_matrix_builder",
+      "description": "Builds a unified feature matrix from lineage vectors, semantic graph, and historical outcomes.",
+      "inputs": {
+        "house_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "lineage_feature_vector",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "vectors"
+        },
+        {
+          "action": "fetch",
+          "entity": "odu_semantic_graph",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "graph"
+        },
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "history"
+        },
+        {
+          "action": "transform",
+          "operation": "buildPredictiveMatrix",
+          "input": {
+            "feature_vectors": "{{vectors}}",
+            "semantic_graph": "{{graph.graph}}",
+            "historical_records": "{{history}}"
+          },
+          "assign": "matrix"
+        }
+      ],
+      "outputs": {
+        "predictive_matrix": "{{matrix}}"
+      }
+    },
+
+    {
+      "module": "predictive_model_trainer",
+      "description": "Trains a predictive model using the feature matrix and historical outcomes.",
+      "inputs": {
+        "house_id": "uuid",
+        "predictive_matrix": "json"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "house_id": "{{house_id}}" },
+          "assign": "history"
+        },
+        {
+          "action": "transform",
+          "operation": "trainPredictiveModel",
+          "input": {
+            "matrix": "{{predictive_matrix}}",
+            "historical_records": "{{history}}"
+          },
+          "assign": "model"
+        },
+        {
+          "action": "insert",
+          "entity": "predictive_outcome_model",
+          "values": {
+            "house_id": "{{house_id}}",
+            "model": "{{model}}"
+          },
+          "assign": "model_record"
+        }
+      ],
+      "outputs": {
+        "model_id": "{{model_record.id}}",
+        "model": "{{model}}"
+      }
+    },
+
+    {
+      "module": "predictive_inference_engine",
+      "description": "Runs inference on a consultation using the trained predictive model.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "fetch",
+          "entity": "predictive_outcome_model",
+          "where": { "house_id": "{{record.house_id}}" },
+          "assign": "model"
+        },
+        {
+          "action": "fetch",
+          "entity": "lineage_feature_vector",
+          "where": { "consultation_record_id": "{{consultation_record_id}}" },
+          "assign": "fv"
+        },
+        {
+          "action": "transform",
+          "operation": "runPredictiveInference",
+          "input": {
+            "model": "{{model.model}}",
+            "features": "{{fv.features}}"
+          },
+          "assign": "prediction"
+        }
+      ],
+      "outputs": {
+        "prediction": "{{prediction}}"
+      }
+    },
+
+    {
+      "module": "predictive_explanation_engine",
+      "description": "Generates explanations for predictions using semantic graph and reasoning engine.",
+      "inputs": {
+        "consultation_record_id": "uuid",
+        "prediction": "json"
+      },
+      "steps": [
+        {
+          "action": "callModule",
+          "module": "odu_semantic_context_builder",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}"
+          },
+          "assign": "context"
+        },
+        {
+          "action": "callModule",
+          "module": "odu_reasoning_engine",
+          "inputs": {
+            "semantic_context": "{{context.semantic_context}}",
+            "query": "explain prediction"
+          },
+          "assign": "reasoning"
+        },
+        {
+          "action": "callModule",
+          "module": "odu_reasoning_expander",
+          "inputs": {
+            "house_id": "{{context.semantic_context.house_id}}",
+            "reasoning": "{{reasoning.reasoning}}"
+          },
+          "assign": "expanded"
+        },
+        {
+          "action": "transform",
+          "operation": "mergePredictionWithReasoning",
+          "input": {
+            "prediction": "{{prediction}}",
+            "expanded_reasoning": "{{expanded.expanded_reasoning}}"
+          },
+          "assign": "explanation"
+        }
+      ],
+      "outputs": {
+        "prediction_explanation": "{{explanation}}"
+      }
+    },
+
+    {
+      "module": "predictive_outcome_pipeline",
+      "description": "Unified pipeline: matrix → model → inference → explanation.",
+      "inputs": {
+        "consultation_record_id": "uuid"
+      },
+      "steps": [
+        {
+          "action": "fetch",
+          "entity": "consultation_record",
+          "where": { "id": "{{consultation_record_id}}" },
+          "assign": "record"
+        },
+        {
+          "action": "callModule",
+          "module": "predictive_feature_matrix_builder",
+          "inputs": {
+            "house_id": "{{record.house_id}}"
+          },
+          "assign": "matrix"
+        },
+        {
+          "action": "callModule",
+          "module": "predictive_model_trainer",
+          "inputs": {
+            "house_id": "{{record.house_id}}",
+            "predictive_matrix": "{{matrix.predictive_matrix}}"
+          },
+          "assign": "model"
+        },
+        {
+          "action": "callModule",
+          "module": "predictive_inference_engine",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}"
+          },
+          "assign": "prediction"
+        },
+        {
+          "action": "callModule",
+          "module": "predictive_explanation_engine",
+          "inputs": {
+            "consultation_record_id": "{{consultation_record_id}}",
+            "prediction": "{{prediction.prediction}}"
+          },
+          "assign": "explanation"
+        }
+      ],
+      "outputs": {
+        "predictive_matrix": "{{matrix.predictive_matrix}}",
+        "model": "{{model.model}}",
+        "prediction": "{{prediction.prediction}}",
+        "prediction_explanation": "{{explanation.prediction_explanation}}"
+      }
+    }
+  ]
+}
