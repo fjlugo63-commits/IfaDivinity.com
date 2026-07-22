@@ -66,6 +66,7 @@ export const TABLES = {
   audit_log: 'audit_log',
   rule_change_proposal: 'rule_change_proposal',
   consult_engine_config: 'consult_engine_config',
+  contribution_record: 'app_340b9f1944_contribution_record',
 } as const;
 
 // Product type matching actual DB schema

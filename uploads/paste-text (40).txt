@@ -1,0 +1,167 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_public_house_portal",
+      "description": "Public-facing portal for exploring Ifa houses, traditions, lineage, and naming conventions.",
+      "screens": [
+        {
+          "name": "house_portal_landing",
+          "type": "page",
+          "description": "Landing page introducing the Ifa houses.",
+          "content": {
+            "header": "Explore Ifa Houses",
+            "body": "Learn about the traditions, lineage, naming conventions, and spiritual identity of each participating Ifa house."
+          },
+          "actions": [
+            {
+              "name": "view_houses",
+              "label": "Browse Houses",
+              "type": "navigate",
+              "target": "house_portal_list"
+            }
+          ]
+        },
+
+        {
+          "name": "house_portal_list",
+          "type": "list",
+          "description": "List of all houses registered in the IfaDivinity system.",
+          "entity": "house_profile",
+          "fields": [
+            "name",
+            "tradition",
+            "updated_at"
+          ],
+          "actions": [
+            {
+              "name": "view_house",
+              "label": "View",
+              "type": "navigate",
+              "target": "house_portal_detail",
+              "params": {
+                "house_id": "{{id}}"
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "house_portal_detail",
+          "type": "page",
+          "description": "Full detail view of a house including tradition, lineage, naming conventions, cast tables, and public identity.",
+          "logic": [
+            {
+              "action": "fetch",
+              "entity": "house_profile",
+              "where": { "id": "{{params.house_id}}" },
+              "assign": "house"
+            }
+          ],
+          "fields": [
+            {
+              "name": "name",
+              "label": "House Name",
+              "type": "display",
+              "value": "{{house.name}}"
+            },
+            {
+              "name": "tradition",
+              "label": "Tradition",
+              "type": "display",
+              "value": "{{house.tradition}}"
+            },
+            {
+              "name": "spelling_map",
+              "label": "Spelling Map",
+              "type": "display",
+              "value": "{{house.spelling_map}}"
+            },
+            {
+              "name": "pronunciation_map",
+              "label": "Pronunciation Map",
+              "type": "display",
+              "value": "{{house.pronunciation_map}}"
+            },
+            {
+              "name": "cast2_table",
+              "label": "Cast2 Table (Ire/Osogbo)",
+              "type": "display",
+              "value": "{{house.cast2_table}}"
+            },
+            {
+              "name": "cast3_table",
+              "label": "Cast3 Table (Subtype)",
+              "type": "display",
+              "value": "{{house.cast3_table}}"
+            },
+            {
+              "name": "cast4_table",
+              "label": "Cast4 Table (Orisha Owner)",
+              "type": "display",
+              "value": "{{house.cast4_table}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "view_house_odu",
+              "label": "View House Odu Rules",
+              "type": "navigate",
+              "target": "house_portal_odu_rules",
+              "params": {
+                "house_id": "{{params.house_id}}"
+              }
+            },
+            {
+              "name": "back_to_list",
+              "label": "Back to Houses",
+              "type": "navigate",
+              "target": "house_portal_list"
+            }
+          ]
+        },
+
+        {
+          "name": "house_portal_odu_rules",
+          "type": "list",
+          "description": "View all Odu rules defined by this house.",
+          "entity": "house_odu_rule",
+          "filters": [
+            {
+              "field": "house_id",
+              "value": "{{params.house_id}}"
+            }
+          ],
+          "fields": [
+            "pattern_key",
+            "odu_code",
+            "combined_name",
+            "result",
+            "subtype",
+            "recommended_ebo"
+          ],
+          "actions": [
+            {
+              "name": "view_odu_detail",
+              "label": "View Odu",
+              "type": "navigate",
+              "target": "odu_db_detail",
+              "params": {
+                "odu_code": "{{odu_code}}"
+              }
+            },
+            {
+              "name": "back_to_house",
+              "label": "Back to House",
+              "type": "navigate",
+              "target": "house_portal_detail",
+              "params": {
+                "house_id": "{{params.house_id}}"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
