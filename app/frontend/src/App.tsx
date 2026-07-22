@@ -36,6 +36,7 @@ const AdminConsultationViewer = lazy(() => import('./pages/admin/AdminConsultati
 const AdminAuditLogs = lazy(() => import('./pages/admin/AdminAuditLogs'));
 const AdminEngineConfig = lazy(() => import('./pages/admin/AdminEngineConfig'));
 const AdminTestHarness = lazy(() => import('./pages/admin/AdminTestHarness'));
+const PublicConsultation = lazy(() => import('./pages/PublicConsultation'));
 const SuperAdminSetup = lazy(() => import('./pages/SuperAdminSetup'));
 const SystemTestAccounts = lazy(() => import('./pages/SystemTestAccounts'));
 const AwoDashboard = lazy(() => import('./pages/AwoDashboard'));
@@ -168,6 +169,9 @@ const AppRoutes = () => (
       <Route path="/consult/summary" element={<ConsultSummary />} />
       <Route path="/consult/payment" element={<ConsultPayment />} />
       <Route path="/consult/history" element={<ConsultHistoryPage />} />
+
+      {/* Public consultation */}
+      <Route path="/consultation" element={<PublicConsultation />} />
 
       {/* System routes */}
       <Route path="/setup/super-admin" element={<SuperAdminSetup />} />

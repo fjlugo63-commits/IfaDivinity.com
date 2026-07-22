@@ -1,0 +1,132 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_public_consultation",
+      "description": "Public-facing Opele consultation interface for IfaDivinity.com.",
+      "screens": [
+        {
+          "name": "public_consultation_landing",
+          "type": "page",
+          "description": "Landing page introducing the consultation process.",
+          "content": {
+            "header": "Opele Consultation",
+            "body": "Receive guidance through the sacred Opele divination system. Select your house and initiate a consultation."
+          },
+          "actions": [
+            {
+              "name": "start_consultation",
+              "label": "Begin Consultation",
+              "type": "navigate",
+              "target": "public_consultation_form"
+            }
+          ]
+        },
+
+        {
+          "name": "public_consultation_form",
+          "type": "form",
+          "description": "User inputs Opele cast or uses assisted casting.",
+          "fields": [
+            {
+              "name": "house_id",
+              "label": "Select House",
+              "type": "select",
+              "entity": "house_profile",
+              "displayField": "name"
+            },
+            {
+              "name": "raw_bits",
+              "label": "Opele Cast (8-bit)",
+              "type": "text",
+              "placeholder": "e.g., 10100110"
+            }
+          ],
+          "actions": [
+            {
+              "name": "perform_consultation",
+              "label": "Consult Ifa",
+              "type": "apiCall",
+              "endpoint": "/consult/opele",
+              "method": "POST",
+              "payload": {
+                "raw_bits": "{{raw_bits}}",
+                "house_id": "{{house_id}}",
+                "awo_id": null
+              },
+              "assign": "result"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "main_odu",
+              "label": "Main Odu",
+              "value": "{{result.main_odu}}"
+            },
+            {
+              "name": "ire_or_osogbo",
+              "label": "Ire / Osogbo",
+              "value": "{{result.ire_or_osogbo}}"
+            },
+            {
+              "name": "subtype",
+              "label": "Subtype",
+              "value": "{{result.subtype}}"
+            },
+            {
+              "name": "orisha_owner",
+              "label": "Orisha Owner",
+              "value": "{{result.orisha_owner}}"
+            },
+            {
+              "name": "recommended_ebo",
+              "label": "Recommended Ebo",
+              "value": "{{result.recommended_ebo}}"
+            }
+          ]
+        },
+
+        {
+          "name": "public_consultation_result",
+          "type": "page",
+          "description": "Displays full rendered consultation results.",
+          "fields": [
+            {
+              "name": "main_odu",
+              "label": "Main Odu",
+              "type": "display"
+            },
+            {
+              "name": "ire_or_osogbo",
+              "label": "Ire / Osogbo",
+              "type": "display"
+            },
+            {
+              "name": "subtype",
+              "label": "Subtype",
+              "type": "display"
+            },
+            {
+              "name": "orisha_owner",
+              "label": "Orisha Owner",
+              "type": "display"
+            },
+            {
+              "name": "recommended_ebo",
+              "label": "Recommended Ebo",
+              "type": "display"
+            }
+          ],
+          "actions": [
+            {
+              "name": "start_over",
+              "label": "New Consultation",
+              "type": "navigate",
+              "target": "public_consultation_form"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

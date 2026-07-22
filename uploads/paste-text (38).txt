@@ -1,0 +1,129 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_public_odu_knowledge_db",
+      "description": "Public-facing Odu knowledge database for IfaDivinity.com.",
+      "screens": [
+        {
+          "name": "odu_db_landing",
+          "type": "page",
+          "description": "Landing page introducing the Odu knowledge system.",
+          "content": {
+            "header": "Odu Knowledge Library",
+            "body": "Explore the sacred wisdom of the 256 Odu. Learn meanings, lineage variations, pronunciations, and traditional guidance."
+          },
+          "actions": [
+            {
+              "name": "view_all_odu",
+              "label": "Browse Odu",
+              "type": "navigate",
+              "target": "odu_db_list"
+            }
+          ]
+        },
+
+        {
+          "name": "odu_db_list",
+          "type": "list",
+          "description": "List of all Odu with tradition-aware naming.",
+          "entity": "odu_name_map",
+          "fields": [
+            "odu_code",
+            "yoruba_name",
+            "lukumi_name"
+          ],
+          "actions": [
+            {
+              "name": "view_odu",
+              "label": "View",
+              "type": "navigate",
+              "target": "odu_db_detail",
+              "params": {
+                "odu_code": "{{odu_code}}"
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "odu_db_detail",
+          "type": "page",
+          "description": "Full detail view of an Odu including meanings, variants, and house-specific interpretations.",
+          "fields": [
+            {
+              "name": "odu_code",
+              "label": "Odu Code",
+              "type": "display"
+            },
+            {
+              "name": "odu_display_name",
+              "label": "Odu Name",
+              "type": "display"
+            },
+            {
+              "name": "variants",
+              "label": "Name Variants",
+              "type": "display"
+            },
+            {
+              "name": "meanings",
+              "label": "General Meanings",
+              "type": "display"
+            },
+            {
+              "name": "house_interpretations",
+              "label": "House-Specific Interpretations",
+              "type": "display"
+            },
+            {
+              "name": "pronunciation",
+              "label": "Pronunciation Guide",
+              "type": "display"
+            }
+          ],
+          "actions": [
+            {
+              "name": "back_to_list",
+              "label": "Back to Odu List",
+              "type": "navigate",
+              "target": "odu_db_list"
+            }
+          ],
+          "logic": [
+            {
+              "action": "fetch",
+              "entity": "odu_name_map",
+              "where": { "odu_code": "{{params.odu_code}}" },
+              "assign": "odu"
+            },
+            {
+              "action": "transform",
+              "operation": "selectTraditionName",
+              "input": {
+                "tradition": "public",
+                "yoruba_name": "{{odu.yoruba_name}}",
+                "lukumi_name": "{{odu.lukumi_name}}"
+              },
+              "assign": "display_name"
+            },
+            {
+              "action": "fetch",
+              "entity": "house_odu_rule",
+              "where": { "odu_code": "{{params.odu_code}}" },
+              "assign": "house_rules"
+            }
+          ],
+          "outputs": {
+            "odu_code": "{{odu.odu_code}}",
+            "odu_display_name": "{{display_name}}",
+            "variants": "{{odu.variants}}",
+            "meanings": "{{odu.meanings}}",
+            "house_interpretations": "{{house_rules}}",
+            "pronunciation": "{{odu.pronunciation}}"
+          }
+        }
+      ]
+    }
+  ]
+}
