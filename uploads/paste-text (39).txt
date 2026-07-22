@@ -1,0 +1,242 @@
+{
+  "atomsCommand": "defineUiModules",
+  "modules": [
+    {
+      "module": "ui_public_contribution_portal",
+      "description": "Public-facing portal for submitting Odu knowledge contributions, lineage insights, corrections, and interpretations.",
+      "screens": [
+        {
+          "name": "contribution_landing",
+          "type": "page",
+          "description": "Landing page introducing the contribution system.",
+          "content": {
+            "header": "Contribute to the Ifa Knowledge Library",
+            "body": "Share your lineage insights, interpretations, corrections, or additional knowledge to help expand the IfaDivinity community library."
+          },
+          "actions": [
+            {
+              "name": "start_contribution",
+              "label": "Submit Contribution",
+              "type": "navigate",
+              "target": "contribution_form"
+            }
+          ]
+        },
+
+        {
+          "name": "contribution_form",
+          "type": "form",
+          "description": "Public submission form for Odu knowledge contributions.",
+          "fields": [
+            {
+              "name": "user_id",
+              "label": "User ID",
+              "type": "text"
+            },
+            {
+              "name": "odu_code",
+              "label": "Odu",
+              "type": "select",
+              "entity": "odu_name_map",
+              "displayField": "odu_code"
+            },
+            {
+              "name": "contribution_type",
+              "label": "Type of Contribution",
+              "type": "select",
+              "options": [
+                "interpretation",
+                "correction",
+                "variant",
+                "pronunciation",
+                "lineage_specific",
+                "general_knowledge"
+              ]
+            },
+            {
+              "name": "content",
+              "label": "Contribution Content",
+              "type": "textarea"
+            }
+          ],
+          "actions": [
+            {
+              "name": "submit_contribution",
+              "label": "Submit",
+              "type": "apiCall",
+              "endpoint": "/contribution/submit",
+              "method": "POST",
+              "payload": {
+                "user_id": "{{user_id}}",
+                "odu_code": "{{odu_code}}",
+                "contribution_type": "{{contribution_type}}",
+                "content": "{{content}}"
+              },
+              "assign": "submission"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "submission_status",
+              "label": "Status",
+              "value": "{{submission.status}}"
+            }
+          ]
+        },
+
+        {
+          "name": "contribution_thank_you",
+          "type": "page",
+          "description": "Thank you page after submission.",
+          "content": {
+            "header": "Thank You!",
+            "body": "Your contribution has been submitted and is awaiting review by our moderation team."
+          },
+          "actions": [
+            {
+              "name": "back_home",
+              "label": "Return Home",
+              "type": "navigate",
+              "target": "contribution_landing"
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "module": "ui_moderation_portal",
+      "description": "Moderator and Awo council portal for reviewing, approving, rejecting, and publishing contributions.",
+      "screens": [
+        {
+          "name": "moderation_dashboard",
+          "type": "list",
+          "description": "List of all pending contributions.",
+          "entity": "contribution_record",
+          "fields": [
+            "user_id",
+            "odu_code",
+            "contribution_type",
+            "status",
+            "created_at"
+          ],
+          "filters": ["status", "odu_code", "user_id"],
+          "actions": [
+            {
+              "name": "review",
+              "label": "Review",
+              "type": "navigate",
+              "target": "moderation_review",
+              "params": {
+                "contribution_id": "{{id}}"
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "moderation_review",
+          "type": "page",
+          "description": "Moderation review screen.",
+          "logic": [
+            {
+              "action": "fetch",
+              "entity": "contribution_record",
+              "where": { "id": "{{params.contribution_id}}" },
+              "assign": "contribution"
+            }
+          ],
+          "fields": [
+            {
+              "name": "odu_code",
+              "label": "Odu",
+              "type": "display",
+              "value": "{{contribution.odu_code}}"
+            },
+            {
+              "name": "contribution_type",
+              "label": "Type",
+              "type": "display",
+              "value": "{{contribution.contribution_type}}"
+            },
+            {
+              "name": "content",
+              "label": "Content",
+              "type": "display",
+              "value": "{{contribution.content}}"
+            },
+            {
+              "name": "user_id",
+              "label": "Submitted By",
+              "type": "display",
+              "value": "{{contribution.user_id}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "approve",
+              "label": "Approve",
+              "type": "apiCall",
+              "endpoint": "/contribution/approve",
+              "method": "POST",
+              "payload": {
+                "contribution_id": "{{params.contribution_id}}",
+                "moderator_id": "{{currentUser.id}}"
+              },
+              "assign": "approval"
+            },
+            {
+              "name": "reject",
+              "label": "Reject",
+              "type": "apiCall",
+              "endpoint": "/contribution/reject",
+              "method": "POST",
+              "payload": {
+                "contribution_id": "{{params.contribution_id}}",
+                "moderator_id": "{{currentUser.id}}"
+              },
+              "assign": "rejection"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "moderation_status",
+              "label": "Status",
+              "value": "{{approval.status || rejection.status}}"
+            }
+          ]
+        },
+
+        {
+          "name": "moderation_publish",
+          "type": "page",
+          "description": "Publish approved contributions into the Odu knowledge DB.",
+          "logic": [
+            {
+              "action": "apiCall",
+              "endpoint": "/contribution/publish/{{params.contribution_id}}",
+              "method": "POST",
+              "assign": "publish"
+            }
+          ],
+          "fields": [
+            {
+              "name": "publish_status",
+              "label": "Publish Status",
+              "type": "display",
+              "value": "{{publish.status}}"
+            }
+          ],
+          "actions": [
+            {
+              "name": "back_to_dashboard",
+              "label": "Back to Dashboard",
+              "type": "navigate",
+              "target": "moderation_dashboard"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

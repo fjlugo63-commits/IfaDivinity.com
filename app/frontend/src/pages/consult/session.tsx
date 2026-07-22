@@ -7,8 +7,21 @@ import OduPanel from "@/components/consult/OduPanel";
 import IreOsogboPanel from "@/components/consult/IreOsogboPanel";
 import EboPanel from "@/components/consult/EboPanel";
 import NotesPanel from "@/components/consult/NotesPanel";
-import { useConsult } from "../../contexts/consultContext";
+import { useConsult } from "@/contexts/consultContext";
+import { supabase, TABLES } from "@/lib/supabase";
 
+/**
+ * ConsultSession page
+ * 
+ * The main consultation workspace where the Awo records:
+ * - Odu (main Odu from the cast)
+ * - Ire/Osogbo status
+ * - Ebo recommendation
+ * - Notes
+ * 
+ * On finalization, writes the consultation summary to TABLES.consultation_summary
+ * and navigates to the summary page with the consultation_id.
+ */
 export default function ConsultSession() {
   const navigate = useNavigate();
   const { state, advance } = useConsult();
@@ -16,17 +29,66 @@ export default function ConsultSession() {
   const [status, setStatus] = useState("");
   const [ebo, setEbo] = useState("");
   const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   // Load intake data for display
   const intake = JSON.parse(sessionStorage.getItem("consultIntake") || "{}");
 
-  function finalizeConsult() {
-    const sessionData = { odu, status, ebo, notes };
-    // Store session data for summary page
-    sessionStorage.setItem("consultOduCast", JSON.stringify(sessionData));
-    console.log("Consult finalized:", sessionData, "state:", state);
-    advance();
-    navigate("/consult/summary");
+  async function finalizeConsult() {
+    setSubmitting(true);
+
+    try {
+      // Generate a consultation_id for this session
+      const consultationId = crypto.randomUUID();
+
+      // Build the summary text
+      const summaryParts: string[] = [];
+      if (intake.clientName) summaryParts.push(`Client: ${intake.clientName}`);
+      if (intake.consultReason) summaryParts.push(`Reason: ${intake.consultReason}`);
+      if (intake.modality) summaryParts.push(`Modality: ${intake.modality}`);
+      if (odu) summaryParts.push(`Odu: ${odu}`);
+      if (status) summaryParts.push(`Outcome: ${status}`);
+      if (ebo) summaryParts.push(`Ebo: ${ebo}`);
+      if (notes) summaryParts.push(`Notes: ${notes}`);
+      const summaryText = summaryParts.join("\n");
+
+      // Write to consultation_summary table in Supabase
+      const { error: insertError } = await supabase
+        .from(TABLES.consultation_summary)
+        .insert({
+          consultation_id: consultationId,
+          odu: odu,
+          status: status,
+          notes: notes || null,
+          summary_text: summaryText,
+        });
+
+      if (insertError) {
+        console.error("Failed to write consultation summary:", insertError);
+        // Fall back to sessionStorage so the summary page can still display
+        sessionStorage.setItem(
+          "consultOduCast",
+          JSON.stringify({ odu, status, ebo, notes })
+        );
+      }
+
+      // Advance state machine
+      advance();
+
+      // Navigate to summary page with the consultation_id
+      navigate(`/consult/summary?id=${consultationId}`);
+    } catch (err) {
+      console.error("Finalization error:", err);
+      // Fallback: store in sessionStorage
+      sessionStorage.setItem(
+        "consultOduCast",
+        JSON.stringify({ odu, status, ebo, notes })
+      );
+      advance();
+      navigate("/consult/summary");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -88,9 +150,9 @@ export default function ConsultSession() {
           <Button
             className="bg-indigo-700 hover:bg-indigo-800 text-white"
             onClick={finalizeConsult}
-            disabled={!odu || !status}
+            disabled={!odu || !status || submitting}
           >
-            Finalize Consultation
+            {submitting ? "Saving…" : "Finalize Consultation"}
           </Button>
         </div>
       </div>
