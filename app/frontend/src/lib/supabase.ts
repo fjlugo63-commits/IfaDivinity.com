@@ -1,29 +1,17 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
-let supabaseInstance: SupabaseClient;
-
-try {
-  if (isSupabaseConfigured) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
-  } else {
-    supabaseInstance = createClient(
-      'https://placeholder-project.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MTkwMDAwMDAwMH0.placeholder'
-    );
-  }
-} catch {
-  supabaseInstance = createClient(
-    'https://placeholder-project.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MTkwMDAwMDAwMH0.placeholder'
+if (!isSupabaseConfigured) {
+  throw new Error(
+    'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
   );
 }
 
-export const supabase: SupabaseClient = supabaseInstance;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type UserRole = 'anon' | 'buyer' | 'seller' | 'admin' | 'super_admin' | 'client' | 'awo' | 'house_admin';
 
