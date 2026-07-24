@@ -29,6 +29,7 @@ function ensureBuildOutDir() {
     enforce: 'pre' as const,
     configResolved(config) {
       outDir = path.resolve(config.root, config.build.outDir);
+      fs.mkdirSync(outDir, { recursive: true });
     },
     generateBundle() {
       fs.mkdirSync(outDir, { recursive: true });
