@@ -1,58 +1,40 @@
-.atoms/
+# Dependencies
 node_modules/
-.next/
+.pnpm-store/
+
+# Build output
 dist/
-build/
-out/
-!app/promo/out/
-bin/
-obj/
-*.o
-*.exe
-*.log
-logs/
+
+# Environment variables
 .env
 .env.local
-.env.production
-.env.development
-env/
-venv/
-ENV/
-.DS_Store
-.idea/
-*.iml
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
 .vscode/
-.vscode/extensions.json
-.temp/
-*.tmp
-coverage/
-CMakeFiles/
-CMakeCache.txt
-yarn-error.log
-npm-debug.log
-*~
-*.bak
+.idea/
 *.swp
+*.swo
+
+# OS files
+.DS_Store
 Thumbs.db
-ehthumbs.db
-Desktop.ini
-*.local
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-.sass-cache/
-.vite_opt_cache/
-vite.config.ts.timestamp-*.mjs
-vite.config.js.timestamp-*.mjs
-vite.config.mts.timestamp-*.mjs
-vite.config.cts.timestamp-*.mjs
-test-results/
-*.coverage
-*.lcov
-*.user
-*.code-workspace
-pnpm-lock.yaml
-*.pyc
-__pycache__
+
+# Debug logs
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+e2e/test-results/
+playwright-report/
+
+# Supabase
+supabase/.temp/
+
+# Misc
+*.tsbuildinfo
+template_config.json
+.mgx/
