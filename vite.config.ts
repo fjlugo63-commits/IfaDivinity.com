@@ -4,10 +4,7 @@ import fs from 'node:fs';
 import path from 'path';
 import { viteSourceLocator } from '@metagptx/vite-plugin-source-locator';
 import { atoms } from '@metagptx/web-sdk/plugins';
-import { vitePrerenderPlugin } from 'vite-prerender-plugin';
 import Sitemap from 'vite-plugin-sitemap';
-import { getBlogRoutes } from './prerender/blog-routes.js';
-import { getSitemapLastmod } from './prerender/blog-sitemap.js';
 
 function escapeHtmlAttr(str: string): string {
   return str
@@ -32,6 +29,7 @@ function ensureBuildOutDir() {
     enforce: 'pre' as const,
     configResolved(config) {
       outDir = path.resolve(config.root, config.build.outDir);
+      fs.mkdirSync(outDir, { recursive: true });
     },
     generateBundle() {
       fs.mkdirSync(outDir, { recursive: true });
@@ -43,9 +41,7 @@ function ensureBuildOutDir() {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => {
-  const blogPrerenderRoutes = command === 'build' ? getBlogRoutes() : [];
-
+export default defineConfig(() => {
   return {
     plugins: [
       viteSourceLocator({
@@ -56,18 +52,10 @@ export default defineConfig(({ command }) => {
       ensureBuildOutDir(),
       Sitemap({
         hostname: 'https://atoms.template.com',
-        lastmod: getSitemapLastmod(),
         readable: true,
         generateRobotsTxt: true,
         outDir: path.resolve(__dirname, 'dist'),
       }),
-      ...(blogPrerenderRoutes.length > 0
-        ? vitePrerenderPlugin({
-            renderTarget: '#root',
-            prerenderScript: path.resolve(__dirname, 'prerender/blog.js'),
-            additionalPrerenderRoutes: blogPrerenderRoutes,
-          })
-        : []),
     ],
     resolve: {
       alias: {
