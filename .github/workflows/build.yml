@@ -18,9 +18,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: app/frontend/pnpm-lock.yaml
+          cache-dependency-path: '**/pnpm-lock.yaml'
 
       - name: Install dependencies
         working-directory: app/frontend
